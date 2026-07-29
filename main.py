@@ -297,9 +297,9 @@ async def get_quota():
 @app.websocket("/ws/chat")
 async def websocket_chat(websocket: WebSocket):
     await websocket.accept()
-    cfg = load_config()
     try:
         while True:
+            cfg = load_config()
             data = await websocket.receive_text()
             req = json.loads(data)
             user_message = req.get("message", "")
