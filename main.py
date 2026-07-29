@@ -223,36 +223,76 @@ class AvatarRequest(BaseModel):
 async def generate_avatar(req: AvatarRequest):
     prompt = req.prompt if req.prompt else 'cute AI mascot avatar portrait'
     
-    seed = int(time.time())
-    closed_prompt = urllib.parse.quote(f"{prompt}, mouth tightly closed, neutral expression")
-    open_prompt = urllib.parse.quote(f"{prompt}, mouth wide open, talking loudly, expressive")
+    cli_prompt = (
+        f"You are a background task. "
+        f"1. Generate an image with prompt: '{prompt}'. IMPORTANT CONSTRAINTS: The image must be a perfectly centered portrait, facing directly forward at the camera, with a solid neutral background, and suitable for a circular profile picture or UI avatar. Save it to '{os.path.join(IMAGES_DIR, 'char-mouth-closed.png')}'. "
+        f"2. Use the generated image as a reference (edit) to create a second image where the same character has its mouth wide open for speaking. Save it to '{os.path.join(IMAGES_DIR, 'char-mouth-open.png')}'. "
+        f"Ensure background, framing, and style remain identical. Do not ask for user confirmation."
+    )
     
-    img_closed_url = f"https://image.pollinations.ai/prompt/{closed_prompt}?width=512&height=512&nologo=true&seed={seed}"
-    img_open_url = f"https://image.pollinations.ai/prompt/{open_prompt}?width=512&height=512&nologo=true&seed={seed}"
-
     try:
-        res_closed = await asyncio.to_thread(requests.get, img_closed_url, timeout=60)
-        res_open = await asyncio.to_thread(requests.get, img_open_url, timeout=60)
+        proc = await asyncio.create_subprocess_exec(
+            "agy", "-p", cli_prompt, "--dangerously-skip-permissions",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
         
-        if res_closed.status_code == 200 and res_open.status_code == 200:
-            os.makedirs(IMAGES_DIR, exist_ok=True)
-            closed_path = os.path.join(IMAGES_DIR, 'char-mouth-closed.png')
-            open_path = os.path.join(IMAGES_DIR, 'char-mouth-open.png')
-            
-            with open(closed_path, 'wb') as f:
-                f.write(res_closed.content)
-            with open(open_path, 'wb') as f:
-                f.write(res_open.content)
-
+        stdout, stderr = await proc.communicate()
+        
+        if proc.returncode == 0:
             return {
                 'status': 'ok',
                 'timestamp': int(time.time()),
                 'image_url': f"/static/images/char-mouth-closed.png?v={int(time.time())}"
             }
         else:
-            return JSONResponse(status_code=500, content={'error': 'Error al generar la imagen desde el servidor'})
+            return JSONResponse(status_code=500, content={'error': f"Error de CLI: {stderr.decode()}"})
     except Exception as e:
         return JSONResponse(status_code=500, content={'error': f"Excepción: {str(e)}"})
+
+@app.get("/api/models")
+async def get_models():
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "agy", "models",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, _ = await proc.communicate()
+        lines = stdout.decode().strip().split('\n')
+        models = []
+        for line in lines:
+            line = line.strip()
+            # Clean spinner characters
+            if 'Fetching' in line or not line: continue
+            
+            # The line format is: model-id     Description
+            parts = line.split()
+            if len(parts) >= 2:
+                # Remove ANSI codes if any
+                model_id = parts[0]
+                desc = " ".join(parts[1:])
+                models.append({"id": model_id, "name": desc})
+        return {"models": models}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={'error': str(e)})
+
+@app.get("/api/quota")
+async def get_quota():
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "agy", "-p", "/quota", "--dangerously-skip-permissions",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode == 0:
+            return {"quota": stdout.decode().strip()}
+        else:
+            return JSONResponse(status_code=500, content={'error': stderr.decode()})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={'error': str(e)})
+
 
 @app.websocket("/ws/chat")
 async def websocket_chat(websocket: WebSocket):
@@ -276,6 +316,9 @@ async def websocket_chat(websocket: WebSocket):
             ]
             if conversation_id:
                 cmd.extend(["--conversation", conversation_id])
+            
+            if cfg.get('model'):
+                cmd.extend(["--model", cfg.get('model')])
                 
             # Verificar que el working dir exista
             if not os.path.isdir(working_dir):

@@ -1,7 +1,8 @@
 {
     "character_name": "Tetsu",
     "system_prompt": "Sos tetsu, un agente de ia inteligente. Responde en espa\u00f1ol argentino (sin forzar demasiado los modismos). No uses emojis ni markdown, ya que se va a leer por un TTS",
-    "tts_engine": "edge",
+    "tts_engine": "kokoro",
     "tts_voice": "es-AR-TomasNeural",
-    "kokoro_voice": "ef_dora"
+    "kokoro_voice": "em_alex",
+    "model": ""
 }

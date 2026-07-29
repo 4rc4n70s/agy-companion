@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Settings Modal Elements
     const settingsToggleBtn = document.getElementById('settings-toggle-btn');
+    const docsBtn = document.getElementById('docs-btn');
     const settingsModal = document.getElementById('settings-modal');
     const closeModalBtn = document.getElementById('close-modal-btn');
     const saveCfgBtn = document.getElementById('save-cfg-btn');
@@ -340,12 +341,23 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch('/api/config');
             const cfg = await res.json();
+            
             activeConfig = cfg;
             cfgCharName.value = cfg.character_name || 'AGY Companion';
             cfgSystemPrompt.value = cfg.system_prompt || '';
             cfgTtsEngine.value = cfg.tts_engine || 'edge';
             if (cfg.tts_voice) cfgTtsVoice.value = cfg.tts_voice;
             if (cfg.kokoro_voice) cfgKokoroVoice.value = cfg.kokoro_voice;
+            
+            const modelSelect = document.getElementById('model-select');
+            if (cfg.model && modelSelect) {
+                // If there's a saved model, add it as an option so it shows up even before fetching all models
+                const opt = document.createElement('option');
+                opt.value = cfg.model;
+                opt.textContent = cfg.model;
+                modelSelect.appendChild(opt);
+                modelSelect.value = cfg.model;
+            }
             
             charHeading.textContent = cfg.character_name || 'AGY Companion';
             cfgTtsEngine.dispatchEvent(new Event('change'));
@@ -356,11 +368,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadConfig();
 
+    const loadModelsBtn = document.getElementById('load-models-btn');
+    if (loadModelsBtn) {
+        loadModelsBtn.addEventListener('click', async () => {
+            const originalText = loadModelsBtn.textContent;
+            loadModelsBtn.textContent = 'Cargando...';
+            loadModelsBtn.disabled = true;
+            try {
+                const modelsRes = await fetch('/api/models');
+                const modelsData = await modelsRes.json();
+                const modelSelect = document.getElementById('model-select');
+                if (modelSelect && modelsData.models) {
+                    modelSelect.innerHTML = '';
+                    modelsData.models.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m.id;
+                        opt.textContent = m.name;
+                        modelSelect.appendChild(opt);
+                    });
+                    if (activeConfig.model) modelSelect.value = activeConfig.model;
+                }
+            } catch (e) {
+                console.error('Error fetching models', e);
+            } finally {
+                loadModelsBtn.textContent = originalText;
+                loadModelsBtn.disabled = false;
+            }
+        });
+    }
+
     // Modal Control
     settingsToggleBtn.addEventListener('click', () => {
         checkHealth();
         settingsModal.classList.remove('hidden');
     });
+
+    if (docsBtn) {
+        docsBtn.addEventListener('click', () => {
+            openWorkspaceFile('/home/azanardi/Projects/AGY-companion/DOCUMENTACION_TECNICA.md', 'DOCUMENTACION_TECNICA.md');
+        });
+    }
 
     closeModalBtn.addEventListener('click', () => {
         settingsModal.classList.add('hidden');
@@ -372,7 +419,8 @@ document.addEventListener('DOMContentLoaded', () => {
             system_prompt: cfgSystemPrompt.value.trim(),
             tts_engine: cfgTtsEngine.value,
             tts_voice: cfgTtsVoice.value,
-            kokoro_voice: cfgKokoroVoice.value
+            kokoro_voice: cfgKokoroVoice.value,
+            model: document.getElementById('model-select').value
         };
 
         try {

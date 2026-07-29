@@ -11,6 +11,8 @@ html[data-theme="dark"] {
     --button-hover: #2563eb;
     --modal-bg: #1e1e1e;
     --modal-border: #333333;
+    --surface-color: #1e1e1e;
+    --border-color: #333333;
 }
 
 html[data-theme="light"] {
@@ -25,6 +27,8 @@ html[data-theme="light"] {
     --button-hover: #1d4ed8;
     --modal-bg: #ffffff;
     --modal-border: #e2e8f0;
+    --surface-color: #f1f5f9;
+    --border-color: #e2e8f0;
 }
 
 * {
@@ -280,8 +284,8 @@ textarea::placeholder {
 .sidebar {
     width: 420px;
     height: 100vh;
-    background-color: #0d1117;
-    border-right: 1px solid #30363d;
+    background-color: var(--surface-color);
+    border-right: 1px solid var(--border-color);
     z-index: 1000;
     display: flex;
     flex-direction: column;
@@ -299,9 +303,9 @@ textarea::placeholder {
     justify-content: space-between;
     align-items: center;
     padding: 16px;
-    background-color: #161b22;
-    border-bottom: 1px solid #30363d;
-    color: #f0f6fc;
+    background-color: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-color);
 }
 
 .sidebar-title {
@@ -333,7 +337,7 @@ textarea::placeholder {
 .terminal-screen {
     flex: 1;
     background-color: #010409;
-    border: 1px solid #21262d;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 12px;
     font-family: 'Fira Code', 'Consolas', monospace;
@@ -347,8 +351,8 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     gap: 8px;
-    background-color: #161b22;
-    border: 1px solid #30363d;
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
     border-radius: 6px;
     padding: 8px 12px;
     font-family: 'Fira Code', monospace;
@@ -365,7 +369,7 @@ textarea::placeholder {
     background: transparent;
     border: none;
     outline: none;
-    color: #f0f6fc;
+    color: var(--text-color);
     font-family: 'Fira Code', monospace;
     font-size: 0.85rem;
 }
@@ -439,7 +443,7 @@ textarea::placeholder {
     border: 1px solid var(--modal-border);
     border-radius: 16px;
     width: 90%;
-    max-width: 520px;
+    max-width: 750px;
     padding: 24px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
@@ -563,8 +567,27 @@ textarea::placeholder {
 }
 
 .btn-benchmark:hover {
-    background-color: var(--button-bg);
-    color: #ffffff;
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+.outline-btn {
+    padding: 8px 16px;
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.outline-btn:hover {
+    background-color: var(--surface-color);
+    border-color: #3b82f6;
+}
+.outline-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .benchmark-result {
