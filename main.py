@@ -268,10 +268,10 @@ async def get_models():
             
             # The line format is: model-id     Description
             parts = line.split()
-            if len(parts) >= 2:
+            if len(parts) >= 1:
                 # Remove ANSI codes if any
                 model_id = parts[0]
-                desc = " ".join(parts[1:])
+                desc = " ".join(parts[1:]) if len(parts) > 1 else model_id
                 models.append({"id": model_id, "name": desc})
         return {"models": models}
     except Exception as e:
@@ -482,13 +482,24 @@ async def tts(req: TTSRequest):
     if req.engine == 'kokoro':
         try:
             import soundfile as sf
+            import numpy as np
             kokoro = get_kokoro()
             if not kokoro:
                 return JSONResponse(status_code=500, content={'error': 'Modelo Kokoro-ONNX no encontrado'})
             
-            samples, sample_rate = kokoro.create(req.text, voice=req.voice, speed=1.0, lang="es")
+            all_samples = []
+            sample_rate = 24000
+            
+            async for samples, sr in kokoro.create_stream(req.text, voice=req.voice, speed=1.0, lang="es"):
+                all_samples.append(samples)
+                sample_rate = sr
+                
+            if not all_samples:
+                return JSONResponse(status_code=500, content={'error': 'Kokoro no generó audio'})
+                
+            final_samples = np.concatenate(all_samples)
             byte_io = io.BytesIO()
-            sf.write(byte_io, samples, sample_rate, format='WAV')
+            sf.write(byte_io, final_samples, sample_rate, format='WAV')
             b64_audio = base64.b64encode(byte_io.getvalue()).decode('utf-8')
             return {'audio': f'data:audio/wav;base64,{b64_audio}'}
         except Exception as e:
