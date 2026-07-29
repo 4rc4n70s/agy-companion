@@ -25,6 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Settings Modal Elements
     const settingsToggleBtn = document.getElementById('settings-toggle-btn');
     const docsBtn = document.getElementById('docs-btn');
+    const docsModal = document.getElementById('docs-modal');
+    const closeDocsBtn = document.getElementById('close-docs-btn');
+    const docsContent = document.getElementById('docs-content');
     const settingsModal = document.getElementById('settings-modal');
     const closeModalBtn = document.getElementById('close-modal-btn');
     const saveCfgBtn = document.getElementById('save-cfg-btn');
@@ -404,9 +407,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (docsBtn) {
-        docsBtn.addEventListener('click', () => {
-            switchView('workspace');
-            openWorkspaceFile('/home/azanardi/Projects/AGY-companion/DOCUMENTACION_TECNICA.md');
+        docsBtn.addEventListener('click', async () => {
+            docsModal.classList.remove('hidden');
+            docsContent.innerHTML = 'Cargando documentación...';
+            try {
+                const res = await fetch(`/api/workspace/file?filepath=${encodeURIComponent('/home/azanardi/Projects/AGY-companion/DOCUMENTACION_TECNICA.md')}`);
+                const data = await res.json();
+                if (data.error) {
+                    docsContent.innerHTML = `<div style="color:red;">Error: ${data.error}</div>`;
+                } else {
+                    if (window.marked) {
+                        docsContent.innerHTML = window.marked.parse(data.content);
+                        if (window.hljs) {
+                            docsContent.querySelectorAll('pre code').forEach((block) => {
+                                hljs.highlightElement(block);
+                            });
+                        }
+                    } else {
+                        docsContent.innerHTML = `<pre>${data.content}</pre>`;
+                    }
+                }
+            } catch (err) {
+                docsContent.innerHTML = `<div style="color:red;">Error al cargar la documentación.</div>`;
+            }
+        });
+    }
+
+    if (closeDocsBtn) {
+        closeDocsBtn.addEventListener('click', () => {
+            docsModal.classList.add('hidden');
         });
     }
 
