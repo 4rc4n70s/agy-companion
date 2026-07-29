@@ -8,25 +8,47 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    
+    <!-- Diff2Html -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css" />
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html.min.js"></script>
+    
+    <!-- Monaco Editor Loader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
 </head>
 <body>
     <div class="main-container">
         <!-- Top Bar -->
         <header class="top-bar">
             <div class="brand">
-                <button id="sidebar-toggle-btn" class="flat-btn" title="Abrir consola de pensamientos">
-                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                <button id="sidebar-toggle-btn" class="flat-btn" title="Abrir consola de pensamientos" style="font-family: 'Fira Code', monospace; font-weight: bold; font-size: 1rem;">&gt;_</button>
+                <button id="history-toggle-btn" class="flat-btn" title="Historial de Conversaciones">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"></path><circle cx="12" cy="12" r="10"></circle></svg>
                 </button>
                 <span id="health-dot" class="status-dot" title="Comprobando sistema..."></span>
                 <h1 id="char-name-heading">AGY Companion</h1>
             </div>
             <div class="actions">
-                <button id="cli-toggle-btn" class="flat-btn" title="Abrir bucle CLI interactivo en consola">
-                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
-                </button>
                 <button id="theme-toggle-btn" class="flat-btn" title="Alternar modo claro / oscuro">
                     <svg id="theme-icon-sun" class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
                     <svg id="theme-icon-moon" class="icon hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </button>
+                <div id="volume-indicator-container" title="Nivel de micrófono" style="display: none; align-items: center; gap: 4px; padding: 0 10px; height: 100%;">
+                    <div id="vol-bar-1" style="width: 4px; height: 4px; background-color: var(--text-muted); border-radius: 2px; transition: height 0.1s;"></div>
+                    <div id="vol-bar-2" style="width: 4px; height: 6px; background-color: var(--text-muted); border-radius: 2px; transition: height 0.1s;"></div>
+                    <div id="vol-bar-3" style="width: 4px; height: 8px; background-color: var(--text-muted); border-radius: 2px; transition: height 0.1s;"></div>
+                    <div id="vol-bar-4" style="width: 4px; height: 6px; background-color: var(--text-muted); border-radius: 2px; transition: height 0.1s;"></div>
+                    <div id="vol-bar-5" style="width: 4px; height: 4px; background-color: var(--text-muted); border-radius: 2px; transition: height 0.1s;"></div>
+                </div>
+
+                <button id="artifacts-toggle-btn" class="flat-btn" title="Ver Archivos y Artifacts">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                </button>
+                <button id="view-toggle-btn" class="flat-btn" title="Alternar vista de Chat Normal">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 </button>
                 <button id="settings-toggle-btn" class="flat-btn" title="Configurar personaje y voz">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -34,15 +56,70 @@
             </div>
         </header>
 
-        <!-- Center Content: Avatar inside Circle -->
-        <div class="center-content">
-            <div class="avatar-circle">
-                <img id="character-image" src="/static/images/char-mouth-closed.png" alt="Companion Avatar">
+        <!-- Project Path Bar -->
+        <div class="path-bar" style="background-color: var(--surface-color); border-bottom: 1px solid var(--border-color); padding: 5px 20px; display: flex; align-items: center; gap: 10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-muted);"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            <input type="text" id="project-path-input" value="/home/azanardi/Projects/AGY-companion" style="flex: 1; background: transparent; border: none; color: var(--text-color); font-family: 'Fira Code', monospace; font-size: 0.9rem;" placeholder="Ruta del proyecto...">
+            <button id="refresh-workspace-btn" class="flat-btn" style="padding: 4px;" title="Refrescar Explorador">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            </button>
+            <button id="workspace-toggle-btn" class="flat-btn" style="padding: 4px;" title="Alternar Explorador de Archivos">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+            </button>
+        </div>
+
+        <!-- Contenedor Principal de las Vistas -->
+        <div id="views-container">
+            <!-- Center Content: Avatar inside Circle (Vista Actual) -->
+            <div id="avatar-view" class="center-content active-view">
+                <div class="avatar-circle">
+                    <img id="character-image" src="/static/images/char-mouth-closed.png" alt="Companion Avatar">
+                </div>
+
+                <!-- Plain Text Response -->
+                <div class="response-text-area">
+                    <p id="status">Hola, en que te puedo ayudar hoy?</p>
+                </div>
             </div>
 
-            <!-- Plain Text Response -->
-            <div class="response-text-area">
-                <p id="status">Hola, en que te puedo ayudar hoy?</p>
+            <!-- Normal Chat View -->
+            <div id="chat-view" class="chat-content hidden-view">
+                <div id="chat-history" class="chat-history">
+                    <!-- Los mensajes aparecerán aquí -->
+                </div>
+            </div>
+            
+            <!-- Artifacts / Code View -->
+            <div id="artifacts-view" class="artifacts-content hidden-view">
+                <div class="artifacts-sidebar">
+                    <h3>Archivos Generados</h3>
+                    <div id="artifacts-list">
+                        <!-- Lista de archivos -->
+                    </div>
+                </div>
+                <div class="artifact-viewer">
+                    <div id="artifact-content" class="markdown-body">
+                        <p style="color: var(--text-muted);">Selecciona un archivo para previsualizarlo...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workspace Explorer View -->
+            <div id="workspace-view" class="artifacts-content hidden-view">
+                <div class="artifacts-sidebar">
+                    <h3>Explorador del Proyecto</h3>
+                    <input type="text" id="workspace-search-input" placeholder="Buscar archivo..." class="sidebar-search-input">
+                    <div id="workspace-list">
+                        <!-- Lista de archivos del proyecto -->
+                    </div>
+                </div>
+                <div class="artifact-viewer" style="padding: 0; display: flex; flex-direction: column;">
+                    <div style="padding: 10px; background-color: var(--surface-color); border-bottom: 1px solid var(--border-color); display: flex; gap: 10px;">
+                        <button id="show-code-btn" class="flat-btn" style="border: 1px solid var(--border-color);">Código Original</button>
+                        <button id="show-diff-btn" class="flat-btn" style="border: 1px solid var(--border-color);">Ver Git Diff</button>
+                    </div>
+                    <div id="monaco-editor-container" style="flex: 1;"></div>
+                </div>
             </div>
         </div>
 
@@ -50,6 +127,9 @@
         <div class="bottom-bar">
             <div class="input-wrapper">
                 <textarea id="text-input" placeholder="Preguntame algo..." rows="1"></textarea>
+                <button id="mic-button" title="Mantener para dictar" class="icon-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+                </button>
                 <button id="send-button" title="Enviar">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                 </button>
@@ -64,7 +144,12 @@
                 <span class="terminal-dot"></span>
                 <span>AGY CLI Interactive Terminal</span>
             </div>
-            <button id="close-sidebar-btn" class="close-btn">&times;</button>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <button id="toggle-wrap-btn" title="Alternar ajuste de línea" style="background:none; border:none; color:#c9d1d9; cursor:pointer;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 17 19 19 17 17"></polyline><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="19" x2="19" y2="19"></line></svg>
+                </button>
+                <button id="close-sidebar-btn" class="close-btn">&times;</button>
+            </div>
         </div>
         <div class="sidebar-body">
             <div id="console-output" class="terminal-screen">
@@ -76,6 +161,24 @@
             </div>
         </div>
     </aside>
+
+    <!-- Menu Lateral de Historial de Conversaciones -->
+    <aside id="history-sidebar" class="sidebar closed">
+        <div class="sidebar-header">
+            <div class="sidebar-title">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <span>Historial de Conversaciones</span>
+            </div>
+            <button id="close-history-btn" class="close-btn">&times;</button>
+        </div>
+        <div class="sidebar-body" style="padding: 10px;">
+            <button id="new-chat-btn" class="btn-action" style="width: 100%; margin-bottom: 15px;">+ Nueva Conversación</button>
+            <div id="conversations-list" style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="color: var(--text-muted); text-align: center; margin-top: 20px;">Cargando historial...</div>
+            </div>
+        </div>
+    </aside>
+
     <div id="sidebar-overlay" class="overlay hidden"></div>
 
     <!-- Modal de Configuración -->
@@ -86,9 +189,9 @@
                 <button id="close-modal-btn" class="close-btn">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="field">
-                    <label>Estado del Sistema y Dependencias:</label>
-                    <div id="health-report" class="health-card">Verificando dependencias...</div>
+                <div class="field" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
+                    <label for="enable-diffs" style="margin-bottom: 0; cursor: pointer;">Habilitar Diffs Visuales en Chat</label>
+                    <input type="checkbox" id="enable-diffs" checked style="width: 24px; height: 24px; cursor: pointer;">
                 </div>
 
                 <div class="field">
@@ -149,6 +252,11 @@
                 <div class="benchmark-section">
                     <button id="run-benchmark-btn" class="btn-benchmark">Testear Rendimiento de Kokoro ONNX</button>
                     <div id="benchmark-result" class="benchmark-result hidden"></div>
+                </div>
+                
+                <div class="field" style="margin-top: 20px;">
+                    <label>Estado del Sistema y Dependencias:</label>
+                    <div id="health-report" class="health-card">Verificando dependencias...</div>
                 </div>
             </div>
             <div class="modal-footer">
