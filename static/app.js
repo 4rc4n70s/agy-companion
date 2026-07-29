@@ -405,7 +405,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (docsBtn) {
         docsBtn.addEventListener('click', () => {
-            openWorkspaceFile('/home/azanardi/Projects/AGY-companion/DOCUMENTACION_TECNICA.md', 'DOCUMENTACION_TECNICA.md');
+            switchView('workspace');
+            openWorkspaceFile('/home/azanardi/Projects/AGY-companion/DOCUMENTACION_TECNICA.md');
         });
     }
 
