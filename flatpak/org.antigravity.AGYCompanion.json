@@ -1,0 +1,41 @@
+{
+    "app-id": "org.antigravity.AGYCompanion",
+    "runtime": "org.freedesktop.Platform",
+    "runtime-version": "23.08",
+    "sdk": "org.freedesktop.Sdk",
+    "command": "launch.sh",
+    "finish-args": [
+        "--share=ipc",
+        "--share=network",
+        "--socket=x11",
+        "--socket=wayland",
+        "--socket=pulseaudio",
+        "--filesystem=home",
+        "--device=all"
+    ],
+    "modules": [
+        {
+            "name": "python3-dependencies",
+            "buildsystem": "simple",
+            "build-commands": [
+                "pip3 install --prefix=/app flask edge-tts kokoro-onnx soundfile requests"
+            ]
+        },
+        {
+            "name": "agy-companion",
+            "buildsystem": "simple",
+            "build-commands": [
+                "mkdir -p /app/bin /app/share/agy-companion",
+                "cp -r * /app/share/agy-companion/",
+                "ln -s /app/share/agy-companion/launch.sh /app/bin/launch.sh",
+                "chmod +x /app/bin/launch.sh"
+            ],
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": ".."
+                }
+            ]
+        }
+    ]
+}

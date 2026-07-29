@@ -1,31 +1,162 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WakuWaku</title>
+    <title>AGY Companion</title>
     <link rel="stylesheet" href="/static/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="chat-container">
-        <header class="chat-header">
-            <h1>AI Companion</h1>
+    <div class="main-container">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="brand">
+                <button id="sidebar-toggle-btn" class="flat-btn" title="Abrir consola de pensamientos">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <span id="health-dot" class="status-dot" title="Comprobando sistema..."></span>
+                <h1 id="char-name-heading">AGY Companion</h1>
+            </div>
+            <div class="actions">
+                <button id="cli-toggle-btn" class="flat-btn" title="Abrir bucle CLI interactivo en consola">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                </button>
+                <button id="theme-toggle-btn" class="flat-btn" title="Alternar modo claro / oscuro">
+                    <svg id="theme-icon-sun" class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <svg id="theme-icon-moon" class="icon hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </button>
+                <button id="settings-toggle-btn" class="flat-btn" title="Configurar personaje y voz">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
+            </div>
         </header>
-        <div class="character-viewer">
-            <img id="character-image" src="/static/images/char-mouth-closed.png" alt="WakuWaku">
+
+        <!-- Center Content: Avatar inside Circle -->
+        <div class="center-content">
+            <div class="avatar-circle">
+                <img id="character-image" src="/static/images/char-mouth-closed.png" alt="Companion Avatar">
+            </div>
+
+            <!-- Plain Text Response -->
+            <div class="response-text-area">
+                <p id="status">Hola, en que te puedo ayudar hoy?</p>
+            </div>
         </div>
-        <p id="status">Ask me something!</p>
-        <footer class="chat-input-area">
-            <select id="voice-select"></select>
-            <textarea id="text-input" placeholder="Ask me anything..."></textarea>
-            <button id="send-button">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24px" height="24px"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-            </button>
-        </footer>
+
+        <!-- Input Bar at Bottom -->
+        <div class="bottom-bar">
+            <div class="input-wrapper">
+                <textarea id="text-input" placeholder="Preguntame algo..." rows="1"></textarea>
+                <button id="send-button" title="Enviar">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+            </div>
+        </div>
     </div>
+
+    <!-- Menu Lateral Hamburguesa (Consola CLI Interactivay Thoughts) -->
+    <aside id="console-sidebar" class="sidebar closed">
+        <div class="sidebar-header">
+            <div class="sidebar-title">
+                <span class="terminal-dot"></span>
+                <span>AGY CLI Interactive Terminal</span>
+            </div>
+            <button id="close-sidebar-btn" class="close-btn">&times;</button>
+        </div>
+        <div class="sidebar-body">
+            <div id="console-output" class="terminal-screen">
+                <div class="log-line sys">[SYSTEM] Consola interactiva iniciada. Escribe comandos o mensajes directamente abajo:</div>
+            </div>
+            <div class="terminal-input-bar">
+                <span class="prompt-symbol">&gt;_</span>
+                <input type="text" id="terminal-input" placeholder="Enviar mensaje al bucle interactivo...">
+            </div>
+        </div>
+    </aside>
+    <div id="sidebar-overlay" class="overlay hidden"></div>
+
+    <!-- Modal de Configuración -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2>Configuracion</h2>
+                <button id="close-modal-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="field">
+                    <label>Estado del Sistema y Dependencias:</label>
+                    <div id="health-report" class="health-card">Verificando dependencias...</div>
+                </div>
+
+                <div class="field">
+                    <label for="cfg-char-name">Nombre del Personaje:</label>
+                    <input type="text" id="cfg-char-name">
+                </div>
+
+                <div class="field">
+                    <label for="cfg-system-prompt">Prompt de Personalidad (System Instructions):</label>
+                    <textarea id="cfg-system-prompt" rows="3"></textarea>
+                </div>
+
+                <div class="field">
+                    <label for="cfg-avatar-prompt">Generar nueva imagen de personaje (IA):</label>
+                    <div class="input-action-row">
+                        <input type="text" id="cfg-avatar-prompt" placeholder="Ej: Un gato robot cyberpunk azul">
+                        <button id="gen-avatar-btn" class="btn-action">Generar Imagen</button>
+                    </div>
+                    <div id="gen-avatar-status" class="status-msg hidden"></div>
+                </div>
+
+                <div class="field">
+                    <label for="cfg-tts-engine">Motor de Voz (TTS):</label>
+                    <select id="cfg-tts-engine">
+                        <option value="edge">Edge TTS (Nube Neural)</option>
+                        <option value="kokoro">Kokoro ONNX (Local 100%)</option>
+                    </select>
+                </div>
+
+                <div class="field" id="edge-voice-group">
+                    <label for="cfg-tts-voice">Voz Neural (Edge TTS):</label>
+                    <select id="cfg-tts-voice">
+                        <optgroup label="Espanol">
+                            <option value="es-AR-ElenaNeural">Elena (Espanol - Argentina)</option>
+                            <option value="es-AR-TomasNeural">Tomas (Espanol - Argentina)</option>
+                            <option value="es-ES-AlvaroNeural">Alvaro (Espanol - Espana)</option>
+                            <option value="es-ES-ElviraNeural">Elvira (Espanol - Espana)</option>
+                            <option value="es-MX-DaliaNeural">Dalia (Espanol - Mexico)</option>
+                            <option value="es-MX-JorgeNeural">Jorge (Espanol - Mexico)</option>
+                        </optgroup>
+                        <optgroup label="English">
+                            <option value="en-US-AvaNeural">Ava (English - US)</option>
+                            <option value="en-US-AndrewNeural">Andrew (English - US)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="field hidden" id="kokoro-voice-group">
+                    <label for="cfg-kokoro-voice">Voz Kokoro ONNX:</label>
+                    <select id="cfg-kokoro-voice">
+                        <option value="ef_dora">Dora (Espanol / Ingles Femenino)</option>
+                        <option value="em_alex">Alex (Espanol / Ingles Masculino)</option>
+                        <option value="af_sarah">Sarah (Ingles Femenino)</option>
+                        <option value="am_adam">Adam (Ingles Masculino)</option>
+                    </select>
+                </div>
+
+                <div class="benchmark-section">
+                    <button id="run-benchmark-btn" class="btn-benchmark">Testear Rendimiento de Kokoro ONNX</button>
+                    <div id="benchmark-result" class="benchmark-result hidden"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="save-cfg-btn" class="btn-save">Guardar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/app.js"></script>
 </body>
 </html>

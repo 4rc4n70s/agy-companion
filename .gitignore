@@ -1,26 +1,24 @@
-# Byte-code files
-*.pyc
-__pycache__/
-
-# Distribution / packaging
-.Python
-build/
-dist/
-*.egg-info/
-
-# Environments
-.env
+# Python virtual environment
 venv/
 env/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
 
-# Editors
-.vscode/
-.idea/
+# Models and Binary Bundles
+kokoro-models/
+*.onnx
+*.bin
 
-# Testing
-.pytest_cache/
+# Flatpak build artifacts
+flatpak/build-dir/
+flatpak/repo/
+flatpak/.flatpak-builder/
+flatpak/*.flatpak
 
-# Miscellaneous
-.DS_Store
+# Temporary & Log files
 *.log
-*.sqlite3'
+scratch/
+.system_generated/
+.DS_Store
