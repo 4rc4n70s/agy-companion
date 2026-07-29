@@ -500,7 +500,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // TTS Player (Edge / Kokoro)
-    const speakTTS = async (text, engine, voice) => {
+    const speakTTS = async (text, engine, voice, msgDiv = null) => {
+        let playBtn = null;
+        if (msgDiv) {
+            const header = msgDiv.querySelector('.message-header');
+            if (header) {
+                playBtn = document.createElement('button');
+                playBtn.className = 'tts-play-btn outline-btn';
+                playBtn.style.padding = '0 6px';
+                playBtn.style.marginLeft = '8px';
+                playBtn.style.fontSize = '12px';
+                playBtn.style.borderRadius = '4px';
+                playBtn.innerHTML = '⏳';
+                header.appendChild(playBtn);
+            }
+        }
+
         if (currentAudio) {
             currentAudio.pause();
             currentAudio = null;
@@ -516,11 +531,29 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const data = await res.json();
-            if (!data.audio) return;
+            if (!data.audio) {
+                if (playBtn) playBtn.innerHTML = '❌';
+                return;
+            }
 
-            currentAudio = new Audio(data.audio);
+            const thisAudio = new Audio(data.audio);
+            currentAudio = thisAudio;
 
-            currentAudio.onplay = () => {
+            if (playBtn) {
+                playBtn.innerHTML = '▶';
+                playBtn.title = 'Volver a escuchar';
+                playBtn.onclick = () => {
+                    if (currentAudio && currentAudio !== thisAudio) {
+                        currentAudio.pause();
+                    }
+                    clearInterval(lipSyncInterval);
+                    currentAudio = thisAudio;
+                    thisAudio.currentTime = 0;
+                    thisAudio.play();
+                };
+            }
+
+            thisAudio.onplay = () => {
                 let mouthOpen = true;
                 lipSyncInterval = setInterval(() => {
                     characterImage.src = mouthOpen ? openMouthImg : closedMouthImg;
@@ -528,21 +561,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 140);
             };
 
-            currentAudio.onended = () => {
+            thisAudio.onended = () => {
                 clearInterval(lipSyncInterval);
                 characterImage.src = closedMouthImg;
             };
 
-            currentAudio.onerror = () => {
+            thisAudio.onerror = () => {
                 clearInterval(lipSyncInterval);
                 characterImage.src = closedMouthImg;
+                if (playBtn) playBtn.innerHTML = '❌';
             };
 
-            await currentAudio.play();
+            await thisAudio.play();
         } catch (e) {
             console.error('TTS playback error:', e);
             clearInterval(lipSyncInterval);
             characterImage.src = closedMouthImg;
+            if (playBtn) playBtn.innerHTML = '❌';
         }
     };
 
@@ -809,7 +844,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const selectedEngine = activeConfig.tts_engine || 'edge';
                     const selectedVoice = selectedEngine === 'kokoro' ? (activeConfig.kokoro_voice || 'ef_dora') : (activeConfig.tts_voice || 'es-AR-ElenaNeural');
                     
-                    speakTTS(cleanFinal, selectedEngine, selectedVoice);
+                    const lastMsg = chatHistory.lastElementChild;
+                    speakTTS(cleanFinal, selectedEngine, selectedVoice, lastMsg);
                 }
                 else if (data.event === "done") {
                     // Subproceso agy finalizado
