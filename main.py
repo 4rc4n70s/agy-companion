@@ -424,10 +424,30 @@ async def websocket_chat(websocket: WebSocket):
         except:
             pass
 
+def get_git_diff_files(repo_path: str):
+    """Returns a set of absolute paths for files with uncommitted changes."""
+    try:
+        result = subprocess.run(["git", "rev-parse", "--show-toplevel"], 
+                                cwd=repo_path, capture_output=True, text=True, check=True)
+        git_root = result.stdout.strip()
+        status_result = subprocess.run(["git", "status", "--porcelain"], 
+                                      cwd=git_root, capture_output=True, text=True)
+        diff_files = set()
+        for line in status_result.stdout.splitlines():
+            if len(line) > 3:
+                rel_path = line[3:]
+                abs_path = os.path.join(git_root, rel_path)
+                diff_files.add(abs_path)
+        return diff_files
+    except:
+        return set()
+
 @app.get("/api/workspace/files")
 def list_workspace_files(path: str = ""):
     if not path or not os.path.isdir(path):
         return {"error": "Ruta inválida"}
+        
+    diff_files = get_git_diff_files(path)
         
     try:
         files_list = []
@@ -437,10 +457,21 @@ def list_workspace_files(path: str = ""):
                 continue
             item_path = os.path.join(path, item)
             is_dir = os.path.isdir(item_path)
+            
+            has_diff = False
+            if is_dir:
+                dir_prefix = item_path + os.sep
+                if any(f.startswith(dir_prefix) for f in diff_files):
+                    has_diff = True
+            else:
+                if item_path in diff_files:
+                    has_diff = True
+                    
             files_list.append({
                 "name": item,
                 "path": item_path,
-                "is_dir": is_dir
+                "is_dir": is_dir,
+                "has_diff": has_diff
             })
         
         # Separar directorios de archivos y ordenarlos

@@ -124,6 +124,10 @@
                     </div>
                 </div>
                 <div class="artifact-viewer" style="padding: 0; display: flex; flex-direction: column;">
+                    <div id="file-path-bar" style="display: none; align-items: center; justify-content: space-between; padding: 8px 15px; background: var(--bg-color-alt); border-bottom: 1px solid var(--border-color); font-size: 0.9em; font-family: monospace;">
+                        <span id="file-path-display"></span>
+                        <button id="mark-reviewed-btn" class="btn-action" style="padding: 4px 8px; font-size: 0.85em;">Reviewed</button>
+                    </div>
                     <div id="monaco-editor-container" style="flex: 1;"></div>
                 </div>
             </div>
@@ -297,6 +301,6 @@
             </div>
         </div>
     </div>
-    <script src="/static/app.js?v=8"></script>
+    <script src="/static/app.js?v=10"></script>
 </body>
 </html>
