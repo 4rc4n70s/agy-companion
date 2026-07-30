@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AGY Companion</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=4">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -112,15 +112,18 @@
                 <div class="artifacts-sidebar">
                     <h3>Explorador del Proyecto</h3>
                     <input type="text" id="workspace-search-input" placeholder="Buscar archivo..." class="sidebar-search-input">
+                    
+                    <h4 style="margin: 10px 0 5px 0; font-size: 0.9em; color: var(--primary-color);">Modificados Recientemente</h4>
+                    <div id="modified-files-list" style="margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                        <span style="font-size: 0.8em; color: var(--text-muted);">Ninguno</span>
+                    </div>
+                    
+                    <h4 style="margin: 0 0 5px 0; font-size: 0.9em;">Todos los archivos</h4>
                     <div id="workspace-list">
                         <!-- Lista de archivos del proyecto -->
                     </div>
                 </div>
                 <div class="artifact-viewer" style="padding: 0; display: flex; flex-direction: column;">
-                    <div style="padding: 10px; background-color: var(--surface-color); border-bottom: 1px solid var(--border-color); display: flex; gap: 10px;">
-                        <button id="show-code-btn" class="outline-btn">Código Original</button>
-                        <button id="show-diff-btn" class="outline-btn">Ver Git Diff</button>
-                    </div>
                     <div id="monaco-editor-container" style="flex: 1;"></div>
                 </div>
             </div>
@@ -195,6 +198,10 @@
                 <div class="field" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
                     <label for="enable-diffs" style="margin-bottom: 0; cursor: pointer;">Habilitar Diffs Visuales en Chat</label>
                     <input type="checkbox" id="enable-diffs" checked style="width: 24px; height: 24px; cursor: pointer;">
+                </div>
+                <div class="field" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
+                    <label for="enable-tts" style="margin-bottom: 0; cursor: pointer;">Habilitar Voz (TTS)</label>
+                    <input type="checkbox" id="enable-tts" checked style="width: 24px; height: 24px; cursor: pointer;">
                 </div>
 
                 <div class="field">
@@ -290,6 +297,6 @@
             </div>
         </div>
     </div>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=8"></script>
 </body>
 </html>

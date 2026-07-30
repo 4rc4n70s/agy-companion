@@ -296,6 +296,9 @@ textarea::placeholder {
 
 .sidebar.closed {
     margin-left: -420px;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
 }
 
 .sidebar-header {
@@ -675,6 +678,38 @@ textarea::placeholder {
     line-height: 1.5;
 }
 
+.message-bubble p {
+    margin-bottom: 12px;
+}
+.message-bubble p:last-child {
+    margin-bottom: 0;
+}
+.message-bubble pre {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    padding: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin-bottom: 12px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9rem;
+}
+.message-bubble code {
+    font-family: 'Fira Code', monospace;
+    background-color: rgba(0,0,0,0.2);
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+.message-bubble pre code {
+    background-color: transparent;
+    padding: 0;
+}
+.message-bubble ul, .message-bubble ol {
+    margin-bottom: 12px;
+    padding-left: 20px;
+}
+
 .chat-message.hidden-msg {
     display: none !important;
 }
@@ -853,7 +888,9 @@ textarea::placeholder {
 
 .markdown-body {
     width: 100%;
+    max-width: 1000px;
     margin: 0 auto;
+    padding: 20px 40px;
     font-family: 'Inter', sans-serif;
     color: var(--text-color);
     line-height: 1.6;

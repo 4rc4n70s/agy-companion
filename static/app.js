@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveCfgBtn = document.getElementById('save-cfg-btn');
     const cfgCharName = document.getElementById('cfg-char-name');
     const cfgSystemPrompt = document.getElementById('cfg-system-prompt');
+    const cfgEnableTts = document.getElementById('enable-tts');
     const cfgTtsEngine = document.getElementById('cfg-tts-engine');
     const cfgTtsVoice = document.getElementById('cfg-tts-voice');
     const cfgKokoroVoice = document.getElementById('cfg-kokoro-voice');
@@ -74,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sidebar Toggle Logic
     function openSidebar() {
         consoleSidebar.classList.remove('closed');
+        historySidebar.classList.add('closed');
         // sidebarOverlay.classList.remove('hidden'); // Eliminado para permitir interaccion
     }
 
@@ -114,11 +116,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function openHistorySidebar() {
         historySidebar.classList.remove('closed');
+        consoleSidebar.classList.add('closed');
         // sidebarOverlay.classList.remove('hidden'); // Eliminado para permitir interaccion
         loadConversations();
     }
     
-    historyToggleBtn.addEventListener('click', openHistorySidebar);
+    historyToggleBtn.addEventListener('click', () => {
+        if (historySidebar.classList.contains('closed')) {
+            openHistorySidebar();
+        } else {
+            closeSidebar();
+        }
+    });
     closeHistoryBtn.addEventListener('click', closeSidebar);
     
     newChatBtn.addEventListener('click', () => {
@@ -184,16 +193,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             messages.forEach(msg => {
-                const msgDiv = document.createElement('div');
-                msgDiv.className = `chat-message ${msg.role}`;
-                msgDiv.textContent = msg.text;
-                chatHistory.appendChild(msgDiv);
+                let text = msg.text;
+                if (msg.role === 'agent') {
+                    text = text.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim();
+                }
+                appendChatMessage(msg.role, text);
             });
             
             if (messages.length > 0) {
                 const lastMsg = messages[messages.length - 1];
                 if (lastMsg.role === 'agent') {
-                    status.textContent = lastMsg.text;
+                    status.textContent = lastMsg.text.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim();
                 }
             } else {
                 status.textContent = 'Hola, en que te puedo ayudar hoy?';
@@ -346,6 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const cfg = await res.json();
             
             activeConfig = cfg;
+            if (cfgEnableTts) cfgEnableTts.checked = cfg.enable_tts !== false;
             cfgCharName.value = cfg.character_name || 'AGY Companion';
             cfgSystemPrompt.value = cfg.system_prompt || '';
             cfgTtsEngine.value = cfg.tts_engine || 'edge';
@@ -445,6 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     saveCfgBtn.addEventListener('click', async () => {
         const payload = {
+            enable_tts: cfgEnableTts ? cfgEnableTts.checked : true,
             character_name: cfgCharName.value.trim() || 'AGY Companion',
             system_prompt: cfgSystemPrompt.value.trim(),
             tts_engine: cfgTtsEngine.value,
@@ -541,19 +553,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (playBtn) {
                 playBtn.innerHTML = '▶';
-                playBtn.title = 'Volver a escuchar';
-                playBtn.onclick = () => {
-                    if (currentAudio && currentAudio !== thisAudio) {
-                        currentAudio.pause();
+                playBtn.title = 'Reproducir';
+                
+                const togglePlay = () => {
+                    if (thisAudio.paused) {
+                        if (currentAudio && currentAudio !== thisAudio) {
+                            currentAudio.pause();
+                        }
+                        clearInterval(lipSyncInterval);
+                        currentAudio = thisAudio;
+                        thisAudio.play();
+                    } else {
+                        thisAudio.pause();
+                        thisAudio.currentTime = 0;
+                        if (playBtn) playBtn.innerHTML = '▶';
+                        clearInterval(lipSyncInterval);
+                        characterImage.src = closedMouthImg;
                     }
-                    clearInterval(lipSyncInterval);
-                    currentAudio = thisAudio;
-                    thisAudio.currentTime = 0;
-                    thisAudio.play();
                 };
+                playBtn.onclick = togglePlay;
             }
 
             thisAudio.onplay = () => {
+                if (playBtn) {
+                    playBtn.innerHTML = '⏹';
+                    playBtn.title = 'Detener audio';
+                }
                 let mouthOpen = true;
                 lipSyncInterval = setInterval(() => {
                     characterImage.src = mouthOpen ? openMouthImg : closedMouthImg;
@@ -561,7 +586,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 140);
             };
 
+            thisAudio.onpause = () => {
+                if (playBtn) {
+                    playBtn.innerHTML = '▶';
+                    playBtn.title = 'Reproducir';
+                }
+                clearInterval(lipSyncInterval);
+                characterImage.src = closedMouthImg;
+            };
+
             thisAudio.onended = () => {
+                if (playBtn) {
+                    playBtn.innerHTML = '▶';
+                    playBtn.title = 'Reproducir';
+                }
                 clearInterval(lipSyncInterval);
                 characterImage.src = closedMouthImg;
             };
@@ -584,6 +622,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentConversationId = null;
     let ws = null;
     let currentResponseText = "";
+    let isThinking = false;
+    let currentThought = "";
     
     // Pagination settings
     const MAX_VISIBLE_MSGS = 10;
@@ -768,10 +808,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (lastMsg && lastMsg.classList.contains(role)) {
                 let bubble = lastMsg.querySelector('.message-bubble');
                 if (bubble) {
-                    bubble.textContent = text;
+                    if (role === 'agent' && window.marked) {
+                        bubble.innerHTML = window.marked.parse(text);
+                    } else {
+                        bubble.textContent = text;
+                    }
                 } else {
                     lastMsg.textContent = text; // Fallback
                 }
+                
+                if (role === 'agent' && !text.trim()) {
+                    lastMsg.style.display = 'none';
+                } else {
+                    lastMsg.style.display = '';
+                }
+                
                 chatView.scrollTop = chatView.scrollHeight;
                 return;
             }
@@ -786,7 +837,17 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const bubbleDiv = document.createElement('div');
         bubbleDiv.className = 'message-bubble';
-        bubbleDiv.textContent = text;
+        if (role === 'agent' && window.marked) {
+            bubbleDiv.innerHTML = window.marked.parse(text);
+        } else {
+            bubbleDiv.textContent = text;
+        }
+        
+        if (role === 'agent' && !text.trim()) {
+            msgDiv.style.display = 'none';
+        } else {
+            msgDiv.style.display = '';
+        }
         
         msgDiv.appendChild(headerDiv);
         msgDiv.appendChild(bubbleDiv);
@@ -814,12 +875,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (data.event === "step_update" && data.step_update) {
                     const step = data.step_update;
                     if (step.step_type === "agent_response" && step.text_delta) {
-                        // Limpiar tags de pensamiento para la UI principal
                         let text = step.text_delta;
-                        if (text.includes("<thought>")) return; // skip thought start
-                        if (text.includes("</thought>")) return; // skip thought end
-                        
                         currentResponseText += text;
+
+                        if (text.includes("<thought>")) {
+                            isThinking = true;
+                            currentThought = text.split("<thought>")[1] || "";
+                        } 
+                        
+                        if (isThinking && text.includes("</thought>")) {
+                            isThinking = false;
+                            if (!text.includes("<thought>")) {
+                                currentThought += text.split("</thought>")[0] || "";
+                            } else {
+                                currentThought = currentThought.split("</thought>")[0] || "";
+                            }
+                            if (currentThought.trim()) {
+                                appendLog('thought', currentThought.trim());
+                            }
+                            currentThought = "";
+                        } else if (isThinking && !text.includes("<thought>")) {
+                            currentThought += text;
+                        }
+                        
                         const cleanText = currentResponseText.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim();
                         
                         // Actualizar Avatar View
@@ -828,8 +906,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Actualizar Chat View (streaming mode)
                         appendChatMessage('agent', cleanText, true);
                     }
-                    if (step.step_type === "tool_call") {
-                        appendLog('tool', `Ejecutando herramienta...`);
+                    if (step.step_type === "tool" && step.state === "ACTIVE") {
+                        let summary = "Ejecutando herramienta...";
+                        if (step.tool_info && step.tool_info.parameters) {
+                            summary = step.tool_info.parameters.toolSummary || step.tool_info.parameters.toolAction || JSON.stringify(step.tool_info.parameters).substring(0, 50);
+                        }
+                        const toolName = step.tool_name || "Tool";
+                        appendLog('tool', `${toolName}(${summary})`);
                     }
                 }
                 else if (data.event === "result" && data.result) {
@@ -839,13 +922,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     status.textContent = cleanFinal;
                     appendChatMessage('agent', cleanFinal, true);
                     
+                    const lastMsgForHighlight = chatHistory.lastElementChild;
+                    if (lastMsgForHighlight && window.hljs) {
+                        lastMsgForHighlight.querySelectorAll('pre code').forEach((block) => {
+                            window.hljs.highlightElement(block);
+                        });
+                    }
+                    
                     appendLog('res', `Respuesta finalizada.`);
                     
                     const selectedEngine = activeConfig.tts_engine || 'edge';
                     const selectedVoice = selectedEngine === 'kokoro' ? (activeConfig.kokoro_voice || 'ef_dora') : (activeConfig.tts_voice || 'es-AR-ElenaNeural');
                     
                     const lastMsg = chatHistory.lastElementChild;
-                    speakTTS(cleanFinal, selectedEngine, selectedVoice, lastMsg);
+                    if (activeConfig.enable_tts !== false) {
+                        speakTTS(cleanFinal, selectedEngine, selectedVoice, lastMsg);
+                    }
                 }
                 else if (data.event === "done") {
                     // Subproceso agy finalizado
@@ -945,6 +1037,33 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(`/api/workspace/files?path=${encodeURIComponent(path)}`);
             const data = await res.json();
             
+            const modifiedList = document.getElementById('modified-files-list');
+            if (modifiedList && currentConversationId) {
+                try {
+                    const modRes = await fetch(`/api/conversations/${currentConversationId}/modified_files`);
+                    const modFiles = await modRes.json();
+                    modifiedList.innerHTML = '';
+                    if (modFiles.length === 0) {
+                        modifiedList.innerHTML = '<span style="font-size: 0.8em; color: var(--text-muted);">Ninguno</span>';
+                    } else {
+                        modFiles.forEach(file => {
+                            const item = document.createElement('div');
+                            item.className = 'artifact-item';
+                            item.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg> ${file.name}`;
+                            item.addEventListener('click', () => {
+                                document.querySelectorAll('#workspace-list .artifact-item, #modified-files-list .artifact-item').forEach(el => el.classList.remove('active'));
+                                item.classList.add('active');
+                                openWorkspaceFile(file.path);
+                            });
+                            item.title = file.path;
+                            modifiedList.appendChild(item);
+                        });
+                    }
+                } catch(e) {
+                    console.error("Error cargando archivos modificados:", e);
+                }
+            }
+            
             if (data.error) {
                 workspaceList.innerHTML = `<div style="color:red; font-size: 0.9rem;">Error: ${data.error}</div>`;
                 return;
@@ -1032,57 +1151,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 else if (ext === 'json') lang = 'json';
                 else if (ext === 'md') lang = 'markdown';
                 
-                monacoDiffEditorInstance = monaco.editor.createDiffEditor(container, {
-                    theme: 'vs-dark',
-                    readOnly: true,
-                    automaticLayout: true
-                });
-                
-                monacoDiffEditorInstance.setModel({
-                    original: monaco.editor.createModel(originalContent, lang),
-                    modified: monaco.editor.createModel(currentContent, lang)
-                });
+                if (originalContent === currentContent) {
+                    monacoEditorInstance = monaco.editor.create(container, {
+                        value: currentContent,
+                        language: lang,
+                        theme: 'vs-dark',
+                        readOnly: true,
+                        automaticLayout: true
+                    });
+                } else {
+                    monacoDiffEditorInstance = monaco.editor.createDiffEditor(container, {
+                        theme: 'vs-dark',
+                        readOnly: true,
+                        automaticLayout: true
+                    });
+                    
+                    monacoDiffEditorInstance.setModel({
+                        original: monaco.editor.createModel(originalContent, lang),
+                        modified: monaco.editor.createModel(currentContent, lang)
+                    });
+                }
             });
         } else {
             container.innerHTML = `<pre style="padding: 20px;"><code>${currentContent}</code></pre>`;
         }
     }
-    // Botones de diff se pueden dejar o eliminar, pero por defecto mostramos Diff Editor
-    
-    document.getElementById('show-diff-btn')?.addEventListener('click', async () => {
-        if (!projectPathInput) return;
-        const path = projectPathInput.value.trim();
-        const res = await fetch(`/api/workspace/git_diff?path=${encodeURIComponent(path)}`);
-        const data = await res.json();
-        
-        const container = document.getElementById('monaco-editor-container');
-        container.innerHTML = '';
-        
-        if (!data.diff) {
-            container.innerHTML = `<div style="padding: 20px; color: var(--text-muted);">No hay diferencias en el repositorio git actual.</div>`;
-            return;
-        }
-        
-        if (window.require) {
-            require(['vs/editor/editor.main'], function() {
-                // Parseamos diff y mostramos diff original vs modificado
-                // Para una integración simple, mostramos el raw diff en monaco
-                monacoEditorInstance = monaco.editor.create(container, {
-                    value: data.diff,
-                    language: 'diff',
-                    theme: 'vs-dark',
-                    readOnly: true,
-                    automaticLayout: true
-                });
-            });
-        }
-    });
-    
-    document.getElementById('show-code-btn')?.addEventListener('click', () => {
-        if (currentWorkspaceFile) {
-            openWorkspaceFile(currentWorkspaceFile);
-        }
-    });
 
     // Custom Markdown Parsing con diff2html
     if (window.marked) {

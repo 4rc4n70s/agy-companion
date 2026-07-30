@@ -16,6 +16,7 @@ import shutil
 import requests
 import urllib.parse
 from typing import Optional
+from orchestrator import global_event_bus, global_state_manager
 
 app = FastAPI()
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -74,27 +75,45 @@ def list_conversations():
     if not os.path.exists(brain_dir):
         return []
         
+    metadata_path = os.path.join(os.path.dirname(brain_dir), "cache", "conversation_metadata.json")
+    metadata_cache = {}
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                metadata_cache = data.get("conversations", {})
+        except:
+            pass
+
     conversations = []
     for item in os.listdir(brain_dir):
         path = os.path.join(brain_dir, item)
         if os.path.isdir(path):
             transcript_path = os.path.join(path, ".system_generated", "logs", "transcript.jsonl")
             if os.path.exists(transcript_path):
-                # Extraer título tentativo
-                title = "Conversación sin título"
-                try:
-                    with open(transcript_path, 'r', encoding='utf-8') as f:
-                        for line in f:
-                            data = json.loads(line)
-                            if data.get("type") == "USER_INPUT":
-                                content = data.get("content", "")
-                                # Extraer texto dentro de <USER_REQUEST> si existe
-                                if "<USER_REQUEST>" in content:
-                                    content = content.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].strip()
-                                title = content[:40] + ("..." if len(content) > 40 else "")
-                                break
-                except:
-                    pass
+                # Intentar sacar título del caché de agy
+                title = ""
+                cached_data = metadata_cache.get(item)
+                if cached_data and isinstance(cached_data, dict):
+                    summary = cached_data.get("summary")
+                    if summary and isinstance(summary, dict):
+                        title = summary.get("Preview", "")
+                
+                if not title:
+                    title = "Conversación sin título"
+                    try:
+                        with open(transcript_path, 'r', encoding='utf-8') as f:
+                            for line in f:
+                                data = json.loads(line)
+                                if data.get("type") == "USER_INPUT":
+                                    content = data.get("content", "")
+                                    # Extraer texto dentro de <USER_REQUEST> si existe
+                                    if "<USER_REQUEST>" in content:
+                                        content = content.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].strip()
+                                    title = content[:40] + ("..." if len(content) > 40 else "")
+                                    break
+                    except:
+                        pass
                 
                 # Obtener fecha de modificación
                 mod_time = os.path.getmtime(transcript_path)
@@ -127,7 +146,21 @@ def get_conversation_messages(conv_id: str):
                     messages.append({"role": "user", "text": content})
                 elif data.get("type") == "PLANNER_RESPONSE":
                     content = data.get("content", "")
-                    messages.append({"role": "agent", "text": content})
+                    tool_calls = data.get("tool_calls", [])
+                    if tool_calls:
+                        for t in tool_calls:
+                            t_name = t.get("name", "Tool")
+                            t_args = t.get("args", {})
+                            summary = t_args.get("toolSummary", t_name)
+                            target = t_args.get("TargetFile", "")
+                            
+                            content += f"\n\n> 🛠️ **{t_name}**: {summary}"
+                            if target:
+                                target = target.strip('"\'')
+                                content += f"\n> 📄 `{target}`"
+                                
+                    if content.strip() or tool_calls:
+                        messages.append({"role": "agent", "text": content})
     except:
         pass
     return messages
@@ -151,6 +184,30 @@ def list_artifacts(conv_id: str):
         })
     return artifacts
 
+@app.get("/api/conversations/{conv_id}/modified_files")
+def get_modified_files(conv_id: str):
+    transcript_path = os.path.join(get_brain_dir(), conv_id, ".system_generated", "logs", "transcript.jsonl")
+    if not os.path.exists(transcript_path):
+        return []
+        
+    modified_files = set()
+    try:
+        with open(transcript_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                data = json.loads(line)
+                if data.get("type") == "PLANNER_RESPONSE":
+                    tool_calls = data.get("tool_calls", [])
+                    for t in tool_calls:
+                        if t.get("name") in ["replace_file_content", "multi_replace_file_content", "write_to_file", "write_file", "edit"]:
+                            target = t.get("args", {}).get("TargetFile", "")
+                            if target:
+                                target = target.strip('"\'')
+                                modified_files.add(target)
+    except:
+        pass
+    
+    return [{"path": p, "name": os.path.basename(p)} for p in sorted(list(modified_files))]
+
 @app.get("/api/artifacts/{conv_id}/{filename}")
 def read_artifact(conv_id: str, filename: str):
     file_path = os.path.join(get_brain_dir(), conv_id, filename)
@@ -160,6 +217,11 @@ def read_artifact(conv_id: str, filename: str):
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
     return {"name": filename, "content": content}
+
+@app.get("/api/agents/state")
+def get_agents_state():
+    return {"session": global_state_manager.active_session_id, "agents": global_state_manager.get_all_agents()}
+
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -306,7 +368,14 @@ async def websocket_chat(websocket: WebSocket):
             conversation_id = req.get("conversation_id", None)
             working_dir = req.get("working_dir", os.path.expanduser("~"))
             
-            prompt = f"{cfg.get('system_prompt', '')}\n\nUser says: {user_message}"
+            if not conversation_id:
+                sys_prompt = cfg.get('system_prompt', '').strip()
+                if sys_prompt:
+                    prompt = f"{sys_prompt}\n\nUser says: {user_message}"
+                else:
+                    prompt = user_message
+            else:
+                prompt = user_message
             
             cmd = [
                 "agy", 
