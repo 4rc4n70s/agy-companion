@@ -666,6 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let previousMouseX = 0;
             
             avatarCircle.addEventListener('mousedown', (e) => {
+                e.preventDefault(); // Prevents native image drag
                 isDragging = true;
                 previousMouseX = e.clientX;
                 avatarCircle.style.cursor = 'grabbing';
