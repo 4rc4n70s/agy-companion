@@ -438,15 +438,12 @@ async def websocket_chat(websocket: WebSocket):
                 from agents import SupervisorAgent
                 supervisor = SupervisorAgent(working_dir=working_dir)
                 
-                # Avisamos al cliente que estamos en modo pensamiento
-                await websocket.send_text(json.dumps({"event": "step_update", "step_update": {"step_type": "agent_response", "text_delta": "Planificando el trabajo con el equipo..."}}))
+                # Avisamos al cliente que estamos en modo pensamiento (ahora manejado en frontend por 'Pensando...')
                 
                 final_answer = await supervisor.orchestrate(prompt, conversation_id)
             else:
                 from agents import BaseAgent
                 agent = BaseAgent(name="Direct", role="Assistant", working_dir=working_dir)
-                
-                await websocket.send_text(json.dumps({"event": "step_update", "step_update": {"step_type": "agent_response", "text_delta": "Procesando respuesta directa..."}}))
                 
                 final_answer = await agent.run(prompt, conversation_id, direct=True)
             

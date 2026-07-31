@@ -1481,10 +1481,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         const toolName = step.tool_name || "Tool";
                         appendLog('tool', `${toolName}(${summary})`);
+                        
+                        currentResponseText += `\n\n> 🛠️ **${toolName}**: ${summary}\n\n`;
+                        const cleanText = currentResponseText.replace(/<thought>[\s\S]*?<\/thought>/g, '').replace(/94>call:[^\s]+(?:\s*\{[\s\S]*?\})?\s*94>/g, '').trim();
+                        appendChatMessage('agent', cleanText, true);
                     }
                 }
                 else if (data.event === "result" && data.result) {
-                    const finalResponse = data.result.response || "";
+                    let finalResponse = currentResponseText;
+                    if (!finalResponse.trim()) {
+                        finalResponse = data.result.response || "";
+                    }
                     const cleanFinal = finalResponse.replace(/<thought>[\s\S]*?<\/thought>/g, '').replace(/94>call:[^\s]+(?:\s*\{[\s\S]*?\})?\s*94>/g, '').trim();
                     
                     status.textContent = cleanFinal;
