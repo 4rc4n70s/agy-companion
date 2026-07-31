@@ -481,6 +481,17 @@ async def websocket_chat(websocket: WebSocket):
         except:
             pass
 
+@app.post("/api/shutdown")
+def shutdown_server():
+    import os
+    import threading
+    def die():
+        import time
+        time.sleep(0.5)
+        os._exit(0)
+    threading.Thread(target=die).start()
+    return {"status": "ok"}
+
 def get_git_diff_files(repo_path: str):
     """Returns a set of absolute paths for files with uncommitted changes."""
     try:

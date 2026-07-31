@@ -1494,6 +1494,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         const toolName = step.tool_name || "Tool";
                         appendLog('tool', `${toolName}(${summary})`);
                         
+                        // Remove previous "Pensando..." bubble if it exists
+                        let lastMsg = chatHistory.lastElementChild;
+                        if (lastMsg && lastMsg.classList.contains('agent') && !lastMsg.classList.contains('tool-bubble')) {
+                            let bubble = lastMsg.querySelector('.message-bubble');
+                            if (bubble && bubble.textContent.trim() === "Pensando...") {
+                                lastMsg.remove();
+                            }
+                        }
+                        
                         const toolText = `> 🛠️ **${toolName}**: ${summary}`;
                         appendChatMessage('agent', toolText, false, true);
                         
@@ -1843,6 +1852,19 @@ document.addEventListener('DOMContentLoaded', () => {
         textInput.style.height = 'auto';
         textInput.style.height = `${Math.min(textInput.scrollHeight, 100)}px`;
     });
+
+    const shutdownBtn = document.getElementById('shutdown-btn');
+    if (shutdownBtn) {
+        shutdownBtn.addEventListener('click', async () => {
+            if (confirm("¿Estás seguro de que quieres apagar el servidor de Python y cerrar la aplicación?")) {
+                try {
+                    await fetch('/api/shutdown', { method: 'POST' });
+                    document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; color:white; background:#111;"><h1>Servidor apagado. Puedes cerrar esta pestaña.</h1></div>';
+                    setTimeout(() => window.close(), 1000);
+                } catch(e) {}
+            }
+        });
+    }
 
     // Real-Time STT Recording Logic
     let isRecording = false;
