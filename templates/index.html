@@ -337,6 +337,17 @@
                             <span>Archivo VRM:</span>
                             <input type="file" id="cfg-vrm-upload" accept=".vrm" style="font-size: 0.8em; max-width: 200px;">
                         </label>
+                        <div style="font-size: 0.9em; display:flex; flex-direction:column; gap:6px; margin-top: 5px;">
+                            <span>Fondo del Avatar:</span>
+                            <div style="display:flex; gap: 4px; flex-wrap: wrap;">
+                                <button class="bg-btn" data-bg="transparent" style="padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; background: transparent; color: var(--text-color); cursor:pointer;">Transparente</button>
+                                <button class="bg-btn" data-bg="#1a1a1a" style="padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; background: #1a1a1a; color: white; cursor:pointer;">Oscuro</button>
+                                <button class="bg-btn" data-bg="#f0f0f0" style="padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; background: #f0f0f0; color: black; cursor:pointer;">Claro</button>
+                                <button class="bg-btn" data-bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" style="padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-shadow: 1px 1px 2px black; cursor:pointer;">Mágico</button>
+                                <button class="bg-btn" data-bg="linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)" style="padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); color: black; cursor:pointer;">Rosa</button>
+                                <button class="bg-btn" data-bg="url('https://images.unsplash.com/photo-1534796636918-9f1d0ca8373a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80') center/cover" style="padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 4px; background: url('https://images.unsplash.com/photo-1534796636918-9f1d0ca8373a?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80') center/cover; color: white; text-shadow: 1px 1px 2px black; cursor:pointer;">Espacio</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="field" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
@@ -459,7 +470,7 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=38"></script>
+    <script src="/static/app.js?v=39"></script>
     <script type="module" src="/static/vrm_integration.js?v=23"></script>
 </body>
 </html>

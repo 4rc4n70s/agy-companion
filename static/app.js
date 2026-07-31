@@ -598,7 +598,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 };
                 reader.readAsDataURL(file);
-            }
+        });
+    }
+
+    // Avatar Background Logic
+    const bgBtns = document.querySelectorAll('.bg-btn');
+    const avatarCircleBgTarget = document.querySelector('.avatar-circle');
+    
+    if (bgBtns.length > 0 && avatarCircleBgTarget) {
+        const savedBg = localStorage.getItem('vrmBackground') || 'transparent';
+        avatarCircleBgTarget.style.background = savedBg;
+        
+        bgBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const bg = btn.getAttribute('data-bg');
+                avatarCircleBgTarget.style.background = bg;
+                localStorage.setItem('vrmBackground', bg);
+            });
         });
     }
 
