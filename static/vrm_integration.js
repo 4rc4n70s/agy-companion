@@ -420,8 +420,8 @@ export function loadVRMAAnimation(url, vrm) {
 
 // Background idle animation loop
 setInterval(() => {
-    // Only play if model is loaded, not currently animating, and not talking
-    if (!currentVrm || window.vrmIsAnimating || (window.vrmTalkingVolume !== undefined && window.vrmTalkingVolume > 0.05)) {
+    // Only play if model is loaded, not currently animating, not talking, and not paused
+    if (!currentVrm || window.vrmIsAnimating || window.vrmAnimationsPaused || (window.vrmTalkingVolume !== undefined && window.vrmTalkingVolume > 0.05)) {
         return;
     }
     
@@ -452,6 +452,24 @@ window.vrmController = {
         } else {
             loadMixamoAnimation(url, currentVrm);
         }
+    },
+    stopAnimation: () => {
+        if (window.vrmMixer) {
+            window.vrmMixer.stopAllAction();
+        }
+        if (window.vrmAnimTimeout) {
+            clearTimeout(window.vrmAnimTimeout);
+            window.vrmAnimTimeout = null;
+        }
+        if (currentVrm && currentVrm.humanoid) {
+            currentVrm.humanoid.resetNormalizedPose();
+            const leftArm = currentVrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+            const rightArm = currentVrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+            const baseArmAngle = window.vrmArmsDown !== undefined ? window.vrmArmsDown : 0.0;
+            if (leftArm) leftArm.rotation.z = baseArmAngle;
+            if (rightArm) rightArm.rotation.z = -baseArmAngle;
+        }
+        window.vrmIsAnimating = false;
     },
     setCamera: (y, z) => {
         window.vrmCameraOffsetY = y;

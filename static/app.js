@@ -676,9 +676,17 @@ document.addEventListener('DOMContentLoaded', () => {
             
             window.addEventListener('mouseup', (e) => {
                 if (isDragging && !hasDragged) {
-                    // It was a click, not a drag. Play greeting.
-                    if (window.vrmController && window.vrmController.playAnimation) {
-                        window.vrmController.playAnimation('/static/animations/VRMA_02.vrma');
+                    // It was a click, not a drag. Toggle animation state.
+                    if (window.vrmAnimationsPaused) {
+                        window.vrmAnimationsPaused = false; // Resume
+                        if (window.vrmController && window.vrmController.playAnimation) {
+                            window.vrmController.playAnimation('/static/animations/VRMA_02.vrma');
+                        }
+                    } else {
+                        window.vrmAnimationsPaused = true; // Pause
+                        if (window.vrmController && window.vrmController.stopAnimation) {
+                            window.vrmController.stopAnimation();
+                        }
                     }
                 }
                 isDragging = false;
