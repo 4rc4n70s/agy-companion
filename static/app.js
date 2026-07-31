@@ -648,6 +648,51 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
+        // Mouse interaction on the avatar canvas/circle
+        const avatarCircle = document.querySelector('.avatar-circle');
+        if (avatarCircle) {
+            // Zoom with mouse wheel
+            avatarCircle.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const zoomSpeed = 0.05;
+                let newZoom = parseFloat(vrmZoomInput.value) + (e.deltaY > 0 ? zoomSpeed : -zoomSpeed);
+                newZoom = Math.max(parseFloat(vrmZoomInput.min), Math.min(parseFloat(vrmZoomInput.max), newZoom));
+                vrmZoomInput.value = newZoom;
+                vrmZoomInput.dispatchEvent(new Event('input'));
+            });
+            
+            // Rotate with mouse drag
+            let isDragging = false;
+            let previousMouseX = 0;
+            
+            avatarCircle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousMouseX = e.clientX;
+                avatarCircle.style.cursor = 'grabbing';
+            });
+            
+            window.addEventListener('mouseup', () => {
+                isDragging = false;
+                avatarCircle.style.cursor = 'default';
+            });
+            
+            window.addEventListener('mousemove', (e) => {
+                if (isDragging && cfgVrmRotation) {
+                    const deltaX = e.clientX - previousMouseX;
+                    const rotateSpeed = 0.5; // degrees per pixel
+                    let newRotation = parseFloat(cfgVrmRotation.value) + deltaX * rotateSpeed;
+                    
+                    // Wrap rotation around -180 to 180
+                    if (newRotation > 180) newRotation -= 360;
+                    if (newRotation < -180) newRotation += 360;
+                    
+                    cfgVrmRotation.value = newRotation;
+                    cfgVrmRotation.dispatchEvent(new Event('input'));
+                    previousMouseX = e.clientX;
+                }
+            });
+        }
+        
         if (cfgCircleSize) {
             const updateCircleSize = (size) => {
                 const circle = document.querySelector('.avatar-circle');
