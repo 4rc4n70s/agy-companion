@@ -194,7 +194,14 @@ def get_conversation_messages(conv_id: str):
                                 content += f"\n> 📄 `{target}`"
                                 
                     if content.strip() or tool_calls:
-                        messages.append({"role": "agent", "text": content, "tool_calls": tool_calls})
+                        if messages and messages[-1]["role"] == "agent":
+                            # Combine with previous agent message
+                            if content.strip():
+                                messages[-1]["text"] += "\n\n" + content
+                            if tool_calls:
+                                messages[-1].setdefault("tool_calls", []).extend(tool_calls)
+                        else:
+                            messages.append({"role": "agent", "text": content, "tool_calls": tool_calls})
     except:
         pass
     return messages

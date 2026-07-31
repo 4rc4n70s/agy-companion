@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     msg.tool_calls.forEach(t => {
                         const tName = t.name || "Tool";
                         const args = t.args || {};
-                        const summary = args.toolSummary || args.toolAction || JSON.stringify(args).substring(0, 50);
+                        const summary = args.toolSummary || args.toolAction || JSON.stringify(args);
                         appendLog('tool', `${tName}(${summary})`);
                     });
                 }
@@ -1477,7 +1477,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (step.step_type === "tool" && step.state === "ACTIVE") {
                         let summary = "Ejecutando herramienta...";
                         if (step.tool_info && step.tool_info.parameters) {
-                            summary = step.tool_info.parameters.toolSummary || step.tool_info.parameters.toolAction || JSON.stringify(step.tool_info.parameters).substring(0, 50);
+                            summary = step.tool_info.parameters.toolSummary || step.tool_info.parameters.toolAction || JSON.stringify(step.tool_info.parameters);
                         }
                         const toolName = step.tool_name || "Tool";
                         appendLog('tool', `${toolName}(${summary})`);
