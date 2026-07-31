@@ -174,10 +174,12 @@ export async function loadVRMModel(modelUrl) {
             
             if (loadingOverlay) loadingOverlay.style.display = 'none';
             
-            // Trigger default greeting animation (VRMA_02)
-            if (window.vrmController && window.vrmController.playAnimation) {
-                window.vrmController.playAnimation('/static/animations/VRMA_02.vrma');
-            }
+            // Trigger default greeting animation (VRMA_02) after a short delay
+            setTimeout(() => {
+                if (window.vrmController && window.vrmController.playAnimation) {
+                    window.vrmController.playAnimation('/static/animations/VRMA_02.vrma');
+                }
+            }, 500);
         },
         (progress) => {
             if (progress.total > 0 && loadingBar) {
@@ -372,16 +374,18 @@ export function loadVRMAAnimation(url, vrm) {
         
         window.vrmIsAnimating = true;
         
-        // Return to idle state when animation finishes
-        const onFinished = (e) => {
-            if (e.action === action) {
-                // Return to neutral pose when finished
-                action.stop();
-                window.vrmIsAnimating = false;
-                window.vrmMixer.removeEventListener('finished', onFinished);
+        if (window.vrmAnimTimeout) {
+            clearTimeout(window.vrmAnimTimeout);
+        }
+        
+        // Return to idle state when animation finishes based on clip duration
+        window.vrmAnimTimeout = setTimeout(() => {
+            action.stop();
+            if (vrm.humanoid) {
+                vrm.humanoid.resetRestPose();
             }
-        };
-        window.vrmMixer.addEventListener('finished', onFinished);
+            window.vrmIsAnimating = false;
+        }, clip.duration * 1000);
     }, undefined, (error) => {
         console.error('Error loading VRMA animation:', error);
     });
