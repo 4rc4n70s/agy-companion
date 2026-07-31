@@ -1425,12 +1425,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateWorkflowTransition(data.data.active_agent);
                 }
                 else if (data.event === "thought_stream" || data.event === "agent_started") {
-                    if (data.agent_id === "Direct" && data.data && data.data.event === "step_update" && data.data.step_update && data.data.step_update.text_delta) {
-                        let text = data.data.step_update.text_delta;
-                        currentResponseText += text;
-                        updateLastChatMessage(currentResponseText);
+                    if (data.agent_id === "Direct" && data.data) {
+                        let innerData = data.data;
+                        if (!innerData.event && innerData.step_update) {
+                            innerData.event = "step_update";
+                        }
+                        Object.assign(data, innerData);
                     } else if (data.agent_id !== "Direct") {
                         handleMultiagentStream(data.agent_id || "Worker", data.data || {});
+                        return;
                     }
                 }
                 
