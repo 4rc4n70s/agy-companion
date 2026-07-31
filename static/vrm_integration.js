@@ -390,6 +390,12 @@ export function loadVRMAAnimation(url, vrm) {
         
         if (window.vrmAnimTimeout) {
             clearTimeout(window.vrmAnimTimeout);
+            window.vrmAnimTimeout = null;
+        }
+        
+        // Ensure bones are reset if interrupting an existing animation
+        if (vrm.humanoid) {
+            vrm.humanoid.resetNormalizedPose();
         }
         
         // Return to idle state when animation finishes based on clip duration

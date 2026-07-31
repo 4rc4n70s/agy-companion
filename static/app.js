@@ -661,18 +661,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 vrmZoomInput.dispatchEvent(new Event('input'));
             });
             
-            // Rotate with mouse drag
+            // Rotate with mouse drag or click to greet
             let isDragging = false;
             let previousMouseX = 0;
+            let hasDragged = false;
             
             avatarCircle.addEventListener('mousedown', (e) => {
                 e.preventDefault(); // Prevents native image drag
                 isDragging = true;
+                hasDragged = false;
                 previousMouseX = e.clientX;
                 avatarCircle.style.cursor = 'grabbing';
             });
             
-            window.addEventListener('mouseup', () => {
+            window.addEventListener('mouseup', (e) => {
+                if (isDragging && !hasDragged) {
+                    // It was a click, not a drag. Play greeting.
+                    if (window.vrmController && window.vrmController.playAnimation) {
+                        window.vrmController.playAnimation('/static/animations/VRMA_02.vrma');
+                    }
+                }
                 isDragging = false;
                 avatarCircle.style.cursor = 'default';
             });
@@ -680,6 +688,9 @@ document.addEventListener('DOMContentLoaded', () => {
             window.addEventListener('mousemove', (e) => {
                 if (isDragging && cfgVrmRotation) {
                     const deltaX = e.clientX - previousMouseX;
+                    if (Math.abs(deltaX) > 2) {
+                        hasDragged = true;
+                    }
                     const rotateSpeed = 0.5; // degrees per pixel
                     let newRotation = parseFloat(cfgVrmRotation.value) + deltaX * rotateSpeed;
                     
