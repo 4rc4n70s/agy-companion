@@ -169,6 +169,8 @@ def get_conversation_messages(conv_id: str):
         return []
         
     messages = []
+    logs = []
+    
     try:
         with open(transcript_path, 'r', encoding='utf-8') as f:
             for line in f:
@@ -178,9 +180,12 @@ def get_conversation_messages(conv_id: str):
                     if "<USER_REQUEST>" in content:
                         content = content.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].strip()
                     messages.append({"role": "user", "text": content})
+                    logs.append({"type": "sys", "text": f"Tú: \"{content}\""})
+                    
                 elif data.get("type") == "PLANNER_RESPONSE":
                     content = data.get("content", "")
                     tool_calls = data.get("tool_calls", [])
+                    
                     if tool_calls:
                         for t in tool_calls:
                             t_name = t.get("name", "Tool")
@@ -188,23 +193,29 @@ def get_conversation_messages(conv_id: str):
                             summary = t_args.get("toolSummary", t_name)
                             target = t_args.get("TargetFile", "")
                             
-                            content += f"\n\n> 🛠️ **{t_name}**: {summary}"
+                            logs.append({"type": "tool", "text": f"{t_name}({summary})"})
+                            
+                            tool_text = f"> 🛠️ **{t_name}**: {summary}"
                             if target:
                                 target = target.strip('"\'')
-                                content += f"\n> 📄 `{target}`"
+                                tool_text += f"\n> 📄 `{target}`"
                                 
-                    if content.strip() or tool_calls:
-                        if messages and messages[-1]["role"] == "agent":
-                            # Combine with previous agent message
-                            if content.strip():
-                                messages[-1]["text"] += "\n\n" + content
-                            if tool_calls:
-                                messages[-1].setdefault("tool_calls", []).extend(tool_calls)
+                            messages.append({"role": "agent", "text": tool_text, "is_tool": True})
+                            
+                    # Remove thoughts from the textual content
+                    import re
+                    clean_content = re.sub(r'<thought>[\s\S]*?</thought>', '', content).strip()
+                    clean_content = re.sub(r'94>call:[^\s]+(?:\s*\{[\s\S]*?\})?\s*94>', '', clean_content).strip()
+                    
+                    if clean_content:
+                        if messages and messages[-1]["role"] == "agent" and not messages[-1].get("is_tool"):
+                            messages[-1]["text"] += "\n\n" + clean_content
                         else:
-                            messages.append({"role": "agent", "text": content, "tool_calls": tool_calls})
+                            messages.append({"role": "agent", "text": clean_content})
     except:
         pass
-    return messages
+        
+    return {"messages": messages, "logs": logs}
 
 @app.get("/api/artifacts/{conv_id}")
 def list_artifacts(conv_id: str):

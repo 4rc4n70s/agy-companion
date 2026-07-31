@@ -265,10 +265,16 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadConversationMessages(id) {
         try {
             const res = await fetch(`/api/conversations/${id}/messages`);
-            const messages = await res.json();
+            const data = await res.json();
+            const messages = data.messages || [];
+            const logs = data.logs || [];
             
             currentConversationId = id;
-            chatHistory.innerHTML = ''; // Limpiamos y recreamos el botón
+            chatHistory.innerHTML = '';
+            if (consoleOutput) {
+                consoleOutput.innerHTML = '';
+            }
+            
             visibleMessages = MAX_VISIBLE_MSGS;
             
             const loadMoreBtn = document.createElement('button');
@@ -286,18 +292,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (msg.role === 'agent') {
                     text = text.replace(/<thought>[\s\S]*?<\/thought>/g, '').replace(/94>call:[^\s]+(?:\s*\{[\s\S]*?\})?\s*94>/g, '').trim();
                 }
-                appendChatMessage(msg.role, text);
-                
-                if (msg.tool_calls && msg.tool_calls.length > 0) {
-                    msg.tool_calls.forEach(t => {
-                        const tName = t.name || "Tool";
-                        const args = t.args || {};
-                        const summary = args.toolSummary || args.toolAction || JSON.stringify(args);
-                        appendLog('tool', `${tName}(${summary})`);
-                    });
-                }
+                appendChatMessage(msg.role, text, false, msg.is_tool || false);
             });
             
+            logs.forEach(log => {
+                appendLog(log.type, log.text);
+            });
+            
+            chatHistory.scrollTop = chatHistory.scrollHeight;
             if (messages.length > 0) {
                 const lastMsg = messages[messages.length - 1];
                 if (lastMsg.role === 'agent') {
@@ -1181,10 +1183,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    function appendChatMessage(role, text, isStreaming = false) {
-        if (isStreaming) {
+    function appendChatMessage(role, text, isStreaming = false, isTool = false) {
+        if (isStreaming && !isTool) {
             let lastMsg = chatHistory.lastElementChild;
-            if (lastMsg && lastMsg.classList.contains(role)) {
+            if (lastMsg && lastMsg.classList.contains(role) && !lastMsg.classList.contains('tool-bubble')) {
                 let bubble = lastMsg.querySelector('.message-bubble');
                 if (bubble) {
                     if (role === 'agent' && window.marked) {
@@ -1209,6 +1211,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const msgDiv = document.createElement('div');
         msgDiv.className = `chat-message ${role}`;
+        if (isTool) {
+            msgDiv.classList.add('tool-bubble');
+        }
         
         const headerDiv = document.createElement('div');
         headerDiv.className = 'message-header';
@@ -1482,9 +1487,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         const toolName = step.tool_name || "Tool";
                         appendLog('tool', `${toolName}(${summary})`);
                         
-                        currentResponseText += `\n\n> 🛠️ **${toolName}**: ${summary}\n\n`;
-                        const cleanText = currentResponseText.replace(/<thought>[\s\S]*?<\/thought>/g, '').replace(/94>call:[^\s]+(?:\s*\{[\s\S]*?\})?\s*94>/g, '').trim();
-                        appendChatMessage('agent', cleanText, true);
+                        const toolText = `> 🛠️ **${toolName}**: ${summary}`;
+                        appendChatMessage('agent', toolText, false, true);
+                        
+                        // We also append a new placeholder for the text that follows
+                        appendChatMessage('agent', "Pensando...", false);
                     }
                 }
                 else if (data.event === "result" && data.result) {
