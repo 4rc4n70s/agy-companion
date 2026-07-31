@@ -173,6 +173,11 @@ export async function loadVRMModel(modelUrl) {
             }
             
             if (loadingOverlay) loadingOverlay.style.display = 'none';
+            
+            // Trigger default greeting animation (VRMA_02)
+            if (window.vrmController && window.vrmController.playAnimation) {
+                window.vrmController.playAnimation('/static/animations/VRMA_02.vrma');
+            }
         },
         (progress) => {
             if (progress.total > 0 && loadingBar) {
@@ -363,16 +368,51 @@ export function loadVRMAAnimation(url, vrm) {
         const action = window.vrmMixer.clipAction(clip);
         action.setLoop(THREE.LoopOnce);
         action.clampWhenFinished = true;
+        
+        // Fade in
+        action.reset();
+        action.fadeIn(0.5);
         action.play();
         
         window.vrmIsAnimating = true;
         
         // Return to idle state when animation finishes
-        window.vrmMixer.addEventListener('finished', () => {
-            window.vrmIsAnimating = false;
-        });
+        const onFinished = (e) => {
+            if (e.action === action) {
+                action.fadeOut(0.5);
+                setTimeout(() => {
+                    action.stop();
+                    window.vrmIsAnimating = false;
+                }, 500);
+                window.vrmMixer.removeEventListener('finished', onFinished);
+            }
+        };
+        window.vrmMixer.addEventListener('finished', onFinished);
     });
 }
+
+// Background idle animation loop
+setInterval(() => {
+    // Only play if model is loaded, not currently animating, and not talking
+    if (!currentVrm || window.vrmIsAnimating || (window.vrmTalkingVolume !== undefined && window.vrmTalkingVolume > 0.05)) {
+        return;
+    }
+    
+    // Choose a random animation, excluding the greeting (VRMA_02)
+    const genericAnimations = [
+        '/static/animations/VRMA_01.vrma',
+        '/static/animations/VRMA_03.vrma',
+        '/static/animations/VRMA_04.vrma',
+        '/static/animations/VRMA_05.vrma',
+        '/static/animations/VRMA_06.vrma',
+        '/static/animations/VRMA_07.vrma'
+    ];
+    
+    const randomAnim = genericAnimations[Math.floor(Math.random() * genericAnimations.length)];
+    if (window.vrmController && window.vrmController.playAnimation) {
+        window.vrmController.playAnimation(randomAnim);
+    }
+}, 20000);
 
 window.vrmController = {
     init: initVRM,
