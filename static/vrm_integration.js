@@ -134,6 +134,17 @@ export async function loadVRMModel(modelUrl) {
             currentVrm.dispose();
         }
         currentVrm = undefined;
+        
+        // Reset animation state
+        if (window.vrmMixer) {
+            window.vrmMixer.stopAllAction();
+            window.vrmMixer = null;
+        }
+        if (window.vrmAnimTimeout) {
+            clearTimeout(window.vrmAnimTimeout);
+            window.vrmAnimTimeout = null;
+        }
+        window.vrmIsAnimating = false;
     }
 
     const loader = new GLTFLoader();
@@ -363,6 +374,9 @@ export function loadVRMAAnimation(url, vrm) {
         
         if (window.vrmMixer) {
             window.vrmMixer.stopAllAction();
+            if (window.vrmMixer.getRoot() !== vrm.scene) {
+                window.vrmMixer = new THREE.AnimationMixer(vrm.scene);
+            }
         } else {
             window.vrmMixer = new THREE.AnimationMixer(vrm.scene);
         }
