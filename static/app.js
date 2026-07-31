@@ -1463,7 +1463,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             currentThought += text;
                         }
                         
-                        const cleanText = currentResponseText.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim();
+                        const cleanText = currentResponseText.replace(/<thought>[\s\S]*?<\/thought>/g, '').replace(/94>call:[^\s]+(?:\s*\{[\s\S]*?\})?\s*94>/g, '').trim();
                         
                         // Actualizar Avatar View
                         status.textContent = cleanText;
@@ -1482,7 +1482,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 else if (data.event === "result" && data.result) {
                     const finalResponse = data.result.response || "";
-                    const cleanFinal = finalResponse.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim();
+                    const cleanFinal = finalResponse.replace(/<thought>[\s\S]*?<\/thought>/g, '').replace(/94>call:[^\s]+(?:\s*\{[\s\S]*?\})?\s*94>/g, '').trim();
                     
                     status.textContent = cleanFinal;
                     appendChatMessage('agent', cleanFinal, true);
