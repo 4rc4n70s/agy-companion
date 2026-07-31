@@ -654,7 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Zoom with mouse wheel
             avatarCircle.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                const zoomSpeed = 0.05;
+                const zoomSpeed = 0.2;
                 let newZoom = parseFloat(vrmZoomInput.value) + (e.deltaY > 0 ? zoomSpeed : -zoomSpeed);
                 newZoom = Math.max(parseFloat(vrmZoomInput.min), Math.min(parseFloat(vrmZoomInput.max), newZoom));
                 vrmZoomInput.value = newZoom;

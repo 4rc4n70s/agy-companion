@@ -382,7 +382,7 @@ export function loadVRMAAnimation(url, vrm) {
         window.vrmAnimTimeout = setTimeout(() => {
             action.stop();
             if (vrm.humanoid) {
-                vrm.humanoid.resetRestPose();
+                vrm.humanoid.resetNormalizedPose();
             }
             window.vrmIsAnimating = false;
         }, clip.duration * 1000);
@@ -412,7 +412,7 @@ setInterval(() => {
     if (window.vrmController && window.vrmController.playAnimation) {
         window.vrmController.playAnimation(randomAnim);
     }
-}, 20000);
+}, 15000);
 
 window.vrmController = {
     init: initVRM,
