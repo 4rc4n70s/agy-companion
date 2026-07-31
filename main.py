@@ -194,7 +194,7 @@ def get_conversation_messages(conv_id: str):
                                 content += f"\n> 📄 `{target}`"
                                 
                     if content.strip() or tool_calls:
-                        messages.append({"role": "agent", "text": content})
+                        messages.append({"role": "agent", "text": content, "tool_calls": tool_calls})
     except:
         pass
     return messages

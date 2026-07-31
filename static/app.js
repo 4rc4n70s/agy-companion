@@ -287,6 +287,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     text = text.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim();
                 }
                 appendChatMessage(msg.role, text);
+                
+                if (msg.tool_calls && msg.tool_calls.length > 0) {
+                    msg.tool_calls.forEach(t => {
+                        const tName = t.name || "Tool";
+                        const args = t.args || {};
+                        const summary = args.toolSummary || args.toolAction || JSON.stringify(args).substring(0, 50);
+                        appendLog('tool', `${tName}(${summary})`);
+                    });
+                }
             });
             
             if (messages.length > 0) {
