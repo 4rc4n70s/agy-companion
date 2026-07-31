@@ -266,8 +266,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(`/api/conversations/${id}/messages`);
             const data = await res.json();
-            const messages = data.messages || [];
-            const logs = data.logs || [];
+            
+            let messages = [];
+            let logs = [];
+            if (Array.isArray(data)) {
+                messages = data;
+            } else {
+                messages = data.messages || [];
+                logs = data.logs || [];
+            }
             
             currentConversationId = id;
             chatHistory.innerHTML = '';
