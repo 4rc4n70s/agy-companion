@@ -1506,6 +1506,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         const toolText = `> 🛠️ **${toolName}**: ${summary}`;
                         appendChatMessage('agent', toolText, false, true);
                         
+                        // Update Avatar View to show the tool call instead of Pensando
+                        status.textContent = `🛠️ ${summary}`;
+                        
                         // We also append a new placeholder for the text that follows
                         appendChatMessage('agent', "Pensando...", false);
                     }
