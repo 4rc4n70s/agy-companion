@@ -383,6 +383,13 @@ export function loadVRMAAnimation(url, vrm) {
             action.stop();
             if (vrm.humanoid) {
                 vrm.humanoid.resetNormalizedPose();
+                
+                // Immediately apply base arm angle to prevent a 1-frame T-pose flicker
+                const leftArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+                const rightArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+                const baseArmAngle = window.vrmArmsDown !== undefined ? window.vrmArmsDown : 0.0;
+                if (leftArm) leftArm.rotation.z = baseArmAngle;
+                if (rightArm) rightArm.rotation.z = -baseArmAngle;
             }
             window.vrmIsAnimating = false;
         }, clip.duration * 1000);
