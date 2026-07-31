@@ -121,6 +121,15 @@ function _playMixamoClip(newClip, vrm, isIdleLoop) {
         window.vrmMixer.uncacheRoot(window.vrmMixer.getRoot());
     }
     
+    if (vrm.humanoid) {
+        vrm.humanoid.resetNormalizedPose();
+        const leftArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+        const rightArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+        const baseArmAngle = window.vrmArmsDown !== undefined ? window.vrmArmsDown : 0.0;
+        if (leftArm) leftArm.rotation.z = baseArmAngle;
+        if (rightArm) rightArm.rotation.z = -baseArmAngle;
+    }
+    
     window.vrmMixer = new THREE.AnimationMixer(vrm.scene);
     const action = window.vrmMixer.clipAction(newClip);
     
@@ -433,6 +442,11 @@ function _playVRMAClip(clip, vrm) {
         // Ensure bones are reset if interrupting an existing animation
         if (vrm.humanoid) {
             vrm.humanoid.resetNormalizedPose();
+            const leftArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+            const rightArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+            const baseArmAngle = window.vrmArmsDown !== undefined ? window.vrmArmsDown : 0.0;
+            if (leftArm) leftArm.rotation.z = baseArmAngle;
+            if (rightArm) rightArm.rotation.z = -baseArmAngle;
         }
         
         // Return to idle state when animation finishes based on clip duration
