@@ -7,13 +7,13 @@ html[data-theme="dark"] {
     --circle-border: #333333;
     --input-bg: #1e1e1e;
     --input-border: #333333;
-    --button-bg: #3b82f6;
-    --button-hover: #2563eb;
+    --button-bg: #475569;
+    --button-hover: #334155;
     --modal-bg: #1e1e1e;
     --modal-border: #333333;
     --surface-color: #1e1e1e;
     --border-color: #333333;
-    --primary-color: #3b82f6;
+    --primary-color: #475569;
 }
 
 html[data-theme="light"] {
@@ -24,13 +24,13 @@ html[data-theme="light"] {
     --circle-border: #e2e8f0;
     --input-bg: #ffffff;
     --input-border: #cbd5e1;
-    --button-bg: #2563eb;
-    --button-hover: #1d4ed8;
+    --button-bg: #94a3b8;
+    --button-hover: #64748b;
     --modal-bg: #ffffff;
     --modal-border: #e2e8f0;
     --surface-color: #f1f5f9;
     --border-color: #e2e8f0;
-    --primary-color: #2563eb;
+    --primary-color: #64748b;
 }
 
 * {
@@ -582,7 +582,7 @@ textarea::placeholder {
 }
 
 .btn-benchmark:hover {
-    background-color: rgba(59, 130, 246, 0.1);
+    background-color: var(--surface-color);
 }
 
 .outline-btn {
@@ -598,7 +598,7 @@ textarea::placeholder {
 
 .outline-btn:hover {
     background-color: var(--surface-color);
-    border-color: #3b82f6;
+    border-color: var(--button-bg);
 }
 .outline-btn:disabled {
     opacity: 0.5;
@@ -799,7 +799,7 @@ textarea::placeholder {
 
 .history-item.active {
     border-color: var(--primary-color);
-    background-color: rgba(94, 92, 230, 0.1);
+    background-color: var(--surface-color);
 }
 
 .history-title {
