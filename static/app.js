@@ -1873,7 +1873,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return originalCodeRenderer(code, language, isEscaped);
         };
-        marked.setOptions({ renderer: renderer });
+        marked.use({ renderer: renderer });
     };
 
     sendButton.addEventListener('click', handleSendMessage);
