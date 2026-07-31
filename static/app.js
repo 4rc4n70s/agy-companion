@@ -1506,11 +1506,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     if (activeConfig.enable_notifications !== false) {
                         if (Notification.permission === 'granted') {
-                            new Notification('AGY Companion', { body: cleanFinal });
+                            new Notification('AGY Companion', { body: cleanFinal, icon: closedMouthImg });
                         } else if (Notification.permission !== 'denied') {
                             Notification.requestPermission().then(permission => {
                                 if (permission === 'granted') {
-                                    new Notification('AGY Companion', { body: cleanFinal });
+                                    new Notification('AGY Companion', { body: cleanFinal, icon: closedMouthImg });
                                 }
                             });
                         }
