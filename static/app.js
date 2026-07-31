@@ -700,8 +700,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const savedVrmUrl = localStorage.getItem('vrmModelUrl') || '/static/models/sample.vrm';
                 
-                const isFlipped = localStorage.getItem('vrmFlip_' + savedVrmUrl) === 'true';
-                window.vrmController.setFlip(isFlipped);
+                const rotation = parseFloat(localStorage.getItem('vrmRotation_' + savedVrmUrl)) || 180;
+                if (window.vrmController.setRotation) window.vrmController.setRotation(rotation);
                 
                 const isArmsDown = parseFloat(localStorage.getItem('vrmArms_' + savedVrmUrl)) || 0;
                 window.vrmController.setArmsDown(isArmsDown);
