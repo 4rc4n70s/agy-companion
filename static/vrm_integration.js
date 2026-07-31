@@ -368,10 +368,6 @@ export function loadVRMAAnimation(url, vrm) {
         const action = window.vrmMixer.clipAction(clip);
         action.setLoop(THREE.LoopOnce);
         action.clampWhenFinished = true;
-        
-        // Fade in
-        action.reset();
-        action.fadeIn(0.5);
         action.play();
         
         window.vrmIsAnimating = true;
@@ -379,15 +375,15 @@ export function loadVRMAAnimation(url, vrm) {
         // Return to idle state when animation finishes
         const onFinished = (e) => {
             if (e.action === action) {
-                action.fadeOut(0.5);
-                setTimeout(() => {
-                    action.stop();
-                    window.vrmIsAnimating = false;
-                }, 500);
+                // Return to neutral pose when finished
+                action.stop();
+                window.vrmIsAnimating = false;
                 window.vrmMixer.removeEventListener('finished', onFinished);
             }
         };
         window.vrmMixer.addEventListener('finished', onFinished);
+    }, undefined, (error) => {
+        console.error('Error loading VRMA animation:', error);
     });
 }
 
