@@ -34,7 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const cfgAvatarMode = document.getElementById('cfg-avatar-mode');
     const vtuberSettings = document.getElementById('vtuber-settings');
     const cfgVrmUpload = document.getElementById('cfg-vrm-upload');
-    const cfgVrmFlip = document.getElementById('cfg-vrm-flip');
+    const cfgVrmRotation = document.getElementById('cfg-vrm-rotation');
+    const cfgCircleSize = document.getElementById('cfg-circle-size');
     const cfgVrmArms = document.getElementById('cfg-vrm-arms');
     let customVrmDataUrl = localStorage.getItem('customVrmDataUrl') || null;
 
@@ -548,9 +549,13 @@ document.addEventListener('DOMContentLoaded', () => {
             cfgVrmModel.value = savedVrmUrl;
         }
         
-        if (cfgVrmFlip) {
-            const savedFlip = localStorage.getItem('vrmFlip_' + cfgVrmModel.value) === 'true';
-            cfgVrmFlip.checked = savedFlip;
+        if (cfgVrmRotation) {
+            const savedRotation = parseFloat(localStorage.getItem('vrmRotation_' + cfgVrmModel.value)) || 180;
+            cfgVrmRotation.value = savedRotation;
+        }
+        if (cfgCircleSize) {
+            const savedSize = parseFloat(localStorage.getItem('vrmCircleSize_' + cfgVrmModel.value)) || 300;
+            cfgCircleSize.value = savedSize;
         }
         if (cfgVrmArms) {
             const savedArms = parseFloat(localStorage.getItem('vrmArms_' + cfgVrmModel.value)) || 0;
@@ -565,9 +570,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (customVrmUploadLabel) customVrmUploadLabel.style.display = 'none';
                 customVrmDataUrl = null; // Clear custom model since a prebuilt one is selected
             }
-            if (cfgVrmFlip) {
-                const savedFlip = localStorage.getItem('vrmFlip_' + val) === 'true';
-                cfgVrmFlip.checked = savedFlip;
+            if (cfgVrmRotation) {
+                const savedRotation = parseFloat(localStorage.getItem('vrmRotation_' + val)) || 180;
+                cfgVrmRotation.value = savedRotation;
+            }
+            if (cfgCircleSize) {
+                const savedSize = parseFloat(localStorage.getItem('vrmCircleSize_' + val)) || 300;
+                cfgCircleSize.value = savedSize;
             }
             if (cfgVrmArms) {
                 const savedArms = parseFloat(localStorage.getItem('vrmArms_' + val)) || 0;
@@ -628,14 +637,39 @@ document.addEventListener('DOMContentLoaded', () => {
         vrmYOffsetInput.addEventListener('input', updateCamera);
         vrmZoomInput.addEventListener('input', updateCamera);
         
-        if (cfgVrmFlip) {
-            cfgVrmFlip.addEventListener('change', () => {
+        if (cfgVrmRotation) {
+            cfgVrmRotation.addEventListener('input', () => {
                 const currentVrmUrl = localStorage.getItem('vrmModelUrl') || '/static/models/sample.vrm';
-                localStorage.setItem('vrmFlip_' + currentVrmUrl, cfgVrmFlip.checked);
-                if (window.vrmController) {
-                    window.vrmController.setFlip(cfgVrmFlip.checked);
+                const angle = parseFloat(cfgVrmRotation.value);
+                localStorage.setItem('vrmRotation_' + currentVrmUrl, angle);
+                if (window.vrmController && window.vrmController.setRotation) {
+                    window.vrmController.setRotation(angle);
                 }
             });
+        }
+        
+        if (cfgCircleSize) {
+            const updateCircleSize = (size) => {
+                const circle = document.querySelector('.avatar-circle');
+                const frame = document.querySelector('.model-frame');
+                if (circle) {
+                    circle.style.width = `${size}px`;
+                    circle.style.height = `${size}px`;
+                }
+                if (frame) {
+                    frame.style.width = `${size}px`;
+                    frame.style.height = `${size}px`;
+                }
+            };
+            
+            cfgCircleSize.addEventListener('input', () => {
+                const currentVrmUrl = localStorage.getItem('vrmModelUrl') || '/static/models/sample.vrm';
+                const size = parseFloat(cfgCircleSize.value);
+                localStorage.setItem('vrmCircleSize_' + currentVrmUrl, size);
+                updateCircleSize(size);
+            });
+            
+            setTimeout(() => updateCircleSize(parseFloat(cfgCircleSize.value)), 100);
         }
         
         if (cfgVrmArms) {

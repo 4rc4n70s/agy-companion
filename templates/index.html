@@ -117,9 +117,13 @@
                             Zoom (Z):
                             <input type="range" id="vrm-zoom" min="0.5" max="3.0" step="0.1" value="2.0" style="width: 100%;">
                         </label>
-                        <label style="font-size: 0.8em; display: flex; align-items: center; gap: 6px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; margin-top: 4px; cursor: pointer;">
-                            <input type="checkbox" id="cfg-vrm-flip" style="width: 14px; height: 14px; cursor: pointer;">
-                            Rotar 180°
+                        <label style="font-size: 0.8em; display: flex; flex-direction: column; gap: 4px;">
+                            Rotación (Giro):
+                            <input type="range" id="cfg-vrm-rotation" min="-180" max="180" step="1" value="180" style="width: 100%;">
+                        </label>
+                        <label style="font-size: 0.8em; display: flex; flex-direction: column; gap: 4px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; margin-top: 4px;">
+                            Tamaño del recuadro:
+                            <input type="range" id="cfg-circle-size" min="150" max="600" step="10" value="300" style="width: 100%;">
                         </label>
                         <label style="font-size: 0.8em; display: flex; flex-direction: column; gap: 4px;">
                             Brazos (Arriba/Abajo):
