@@ -16,7 +16,13 @@ window.vrmSetTalking = function(val) {
 window.vrmMixer = null;
 window.vrmIsAnimating = false;
 
+const animationCache = {};
+
 export function loadMixamoAnimation(url, vrm, isIdleLoop = false) {
+    if (animationCache[url]) {
+        _playMixamoClip(animationCache[url], vrm, isIdleLoop);
+        return;
+    }
     const loader = new FBXLoader();
     loader.load(url, (fbx) => {
         const clip = fbx.animations[0];
@@ -104,34 +110,38 @@ export function loadMixamoAnimation(url, vrm, isIdleLoop = false) {
         });
 
         const newClip = new THREE.AnimationClip(clip.name, clip.duration, tracks);
-        
-        if (window.vrmMixer) {
-            window.vrmMixer.stopAllAction();
-            window.vrmMixer.uncacheRoot(window.vrmMixer.getRoot());
-        }
-        
-        window.vrmMixer = new THREE.AnimationMixer(vrm.scene);
-        const action = window.vrmMixer.clipAction(newClip);
-        
-        if (isIdleLoop) {
-            action.setLoop(THREE.LoopRepeat);
-            action.clampWhenFinished = false;
-            window.vrmIsAnimating = false;
-        } else {
-            action.setLoop(THREE.LoopOnce);
-            action.clampWhenFinished = true;
-            window.vrmIsAnimating = true;
-            
-            window.vrmMixer.addEventListener('finished', () => {
-                window.vrmIsAnimating = false;
-                if (!window.vrmAnimationsPaused) {
-                    loadMixamoAnimation('/static/animations/Idle.fbx', vrm, true);
-                }
-            });
-        }
-        
-        action.play();
+        animationCache[url] = newClip;
+        _playMixamoClip(newClip, vrm, isIdleLoop);
     });
+}
+
+function _playMixamoClip(newClip, vrm, isIdleLoop) {
+    if (window.vrmMixer) {
+        window.vrmMixer.stopAllAction();
+        window.vrmMixer.uncacheRoot(window.vrmMixer.getRoot());
+    }
+    
+    window.vrmMixer = new THREE.AnimationMixer(vrm.scene);
+    const action = window.vrmMixer.clipAction(newClip);
+    
+    if (isIdleLoop) {
+        action.setLoop(THREE.LoopRepeat);
+        action.clampWhenFinished = false;
+        window.vrmIsAnimating = false;
+    } else {
+        action.setLoop(THREE.LoopOnce);
+        action.clampWhenFinished = true;
+        window.vrmIsAnimating = true;
+        
+        window.vrmMixer.addEventListener('finished', () => {
+            window.vrmIsAnimating = false;
+            if (!window.vrmAnimationsPaused) {
+                loadMixamoAnimation('/static/animations/Idle.fbx', vrm, true);
+            }
+        });
+    }
+    
+    action.play();
 }
 
 export async function loadVRMModel(modelUrl) {
@@ -377,6 +387,10 @@ export function disableVRM() {
 }
 
 export function loadVRMAAnimation(url, vrm) {
+    if (animationCache[url]) {
+        _playVRMAClip(animationCache[url], vrm);
+        return;
+    }
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
     
@@ -386,10 +400,18 @@ export function loadVRMAAnimation(url, vrm) {
         
         const vrmAnimation = vrmAnimations[0];
         const clip = createVRMAnimationClip(vrmAnimation, vrm);
+        animationCache[url] = clip;
         
-        if (window.vrmMixer) {
-            window.vrmMixer.stopAllAction();
-            if (window.vrmMixer.getRoot() !== vrm.scene) {
+        _playVRMAClip(clip, vrm);
+    }, undefined, (error) => {
+        console.error('Error loading VRMA animation:', error);
+    });
+}
+
+function _playVRMAClip(clip, vrm) {
+    if (window.vrmMixer) {
+        window.vrmMixer.stopAllAction();
+        if (window.vrmMixer.getRoot() !== vrm.scene) {
                 window.vrmMixer = new THREE.AnimationMixer(vrm.scene);
             }
         } else {
@@ -432,9 +454,6 @@ export function loadVRMAAnimation(url, vrm) {
                 loadMixamoAnimation('/static/animations/Idle.fbx', vrm, true);
             }
         }, clip.duration * 1000);
-    }, undefined, (error) => {
-        console.error('Error loading VRMA animation:', error);
-    });
 }
 
 // Background idle animation loop
