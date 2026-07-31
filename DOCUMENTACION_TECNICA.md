@@ -48,6 +48,9 @@ La interfaz cuenta con la habilidad de crear personajes visuales generados por I
 - Genera de forma paralela y usando Inpainting una versión con la "Boca abierta".
 - Mediante JavaScript e intersección de audio, el avatar "habla" alternando ambas imágenes al ritmo del texto generado.
 
+### 3.4 Notificaciones de Sistema
+- **Notificaciones del Navegador**: El Companion puede enviar notificaciones nativas de escritorio (a través de la API HTML5 Notification) cuando la IA termina de procesar y emitir su respuesta. Esto es útil para tareas que toman mucho tiempo, permitiendo al usuario cambiar de pestaña sin perder el hilo.
+
 ---
 
 ## 4. Guía de Uso (Tutorial Rápido)

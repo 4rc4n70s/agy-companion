@@ -15,7 +15,6 @@ cloudpickle==3.1.1
 cryptography==46.0.1
 docstring_parser==0.17.0
 fastapi==0.118.0
-fastapi==3.1.2
 google-adk==1.15.1
 google-api-core==2.25.1
 google-api-python-client==2.183.0
@@ -105,4 +104,4 @@ uvicorn==0.37.0
 watchdog==6.0.0
 websockets==15.0.1
 Werkzeug==3.1.3
-uvicorn\nwebsockets\ngoogle-antigravity\npython-multipart\njinja2
+google-antigravity

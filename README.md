@@ -15,6 +15,7 @@ Incluye interfaz gráfica web con diseño plano, sincronización de labios (*lip
   * **Edge TTS:** Voces neuronales de alta calidad ultra rápidas desde la nube.
   * **Kokoro ONNX:** Síntesis de voz 100% offline y local en CPU mediante ONNX cuantizado INT8.
   * **Benchmark Integrado:** Mide el rendimiento de inferencia de voz local en tu CPU con 1 clic.
+* **Notificaciones de Sistema:** Alertas nativas de escritorio cuando la IA termina de procesar sus respuestas.
 * **Generación de Avatares por IA:** Diseña nuevas imágenes de personaje escribiendo descripciones en texto.
 * **Multiplataforma (Linux / Windows / Flatpak):** Scripts de instalación automatizados para Linux y Windows.
 
@@ -70,8 +71,7 @@ flatpak install --user AGYCompanion.flatpak
 
 ## ⚙️ Estructura del Proyecto
 
-* `app.py`: Servidor Flask backend con endpoints de chat, TTS, generación de avatares y auditoría de salud.
-* `cli.py`: Bucle interactivo por línea de comandos usando el SDK `google.antigravity`.
+* `main.py`: Servidor FastAPI backend asíncrono con endpoints de chat, TTS, generación de avatares y auditoría de salud.
 * `config.json`: Persistencia de configuración (personaje, prompt, motor de voz).
 * `templates/index.html`: Interfaz web con menú de hamburguesa, terminal lateral y modal de ajustes.
 * `static/style.css`: Estilos CSS adaptativos (Light/Dark mode) sin librerías externas.

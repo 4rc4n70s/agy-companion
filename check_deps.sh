@@ -26,11 +26,11 @@ if [ -d "$DIR/venv" ]; then
     echo "✅ Entorno Virtual Python (venv): Presente"
     source "$DIR/venv/bin/activate"
     
-    # Check Flask
-    if python -c "import flask" &> /dev/null; then
-        echo "✅ Librería Flask: Instalada"
+    # Check FastAPI
+    if python -c "import fastapi" &> /dev/null; then
+        echo "✅ Librería FastAPI: Instalada"
     else
-        echo "❌ Librería Flask: NO instalada (Ejecuta: pip install flask)"
+        echo "❌ Librería FastAPI: NO instalada (Ejecuta: pip install fastapi uvicorn)"
         ALL_OK=false
     fi
 
