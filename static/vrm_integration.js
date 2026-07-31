@@ -16,7 +16,7 @@ window.vrmSetTalking = function(val) {
 window.vrmMixer = null;
 window.vrmIsAnimating = false;
 
-export function loadMixamoAnimation(url, vrm) {
+export function loadMixamoAnimation(url, vrm, isIdleLoop = false) {
     const loader = new FBXLoader();
     loader.load(url, (fbx) => {
         const clip = fbx.animations[0];
@@ -112,15 +112,25 @@ export function loadMixamoAnimation(url, vrm) {
         
         window.vrmMixer = new THREE.AnimationMixer(vrm.scene);
         const action = window.vrmMixer.clipAction(newClip);
-        action.setLoop(THREE.LoopOnce);
-        action.clampWhenFinished = true;
         
-        window.vrmIsAnimating = true;
-        action.play();
-        
-        window.vrmMixer.addEventListener('finished', () => {
+        if (isIdleLoop) {
+            action.setLoop(THREE.LoopRepeat);
+            action.clampWhenFinished = false;
             window.vrmIsAnimating = false;
-        });
+        } else {
+            action.setLoop(THREE.LoopOnce);
+            action.clampWhenFinished = true;
+            window.vrmIsAnimating = true;
+            
+            window.vrmMixer.addEventListener('finished', () => {
+                window.vrmIsAnimating = false;
+                if (!window.vrmAnimationsPaused) {
+                    loadMixamoAnimation('/static/animations/Idle.fbx', vrm, true);
+                }
+            });
+        }
+        
+        action.play();
     });
 }
 
@@ -189,6 +199,11 @@ export async function loadVRMModel(modelUrl) {
             setTimeout(() => {
                 if (window.vrmController && window.vrmController.playAnimation) {
                     window.vrmController.playAnimation('/static/animations/VRMA_02.vrma');
+                } else {
+                    // Play greeting animation on load, then it will naturally transition to Idle
+                    if (!window.vrmAnimationsPaused) {
+                        loadVRMAAnimation('/static/animations/VRMA_02.vrma', currentVrm);
+                    }
                 }
             }, 500);
         },
@@ -412,6 +427,10 @@ export function loadVRMAAnimation(url, vrm) {
                 if (rightArm) rightArm.rotation.z = -baseArmAngle;
             }
             window.vrmIsAnimating = false;
+            
+            if (!window.vrmAnimationsPaused) {
+                loadMixamoAnimation('/static/animations/Idle.fbx', vrm, true);
+            }
         }, clip.duration * 1000);
     }, undefined, (error) => {
         console.error('Error loading VRMA animation:', error);
