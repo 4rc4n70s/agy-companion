@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AGY Companion</title>
-    <link rel="stylesheet" href="/static/style.css?v=4">
+    <link rel="stylesheet" href="/static/style.css?v=6">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,6 +18,16 @@
     
     <!-- Monaco Editor Loader -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js"></script>
+    <!-- Import Map para cargar Three.js y three-vrm fácilmente -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.167.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.167.0/examples/jsm/",
+          "@pixiv/three-vrm": "https://unpkg.com/@pixiv/three-vrm@3.2.0/lib/three-vrm.module.js"
+        }
+      }
+    </script>
 </head>
 <body>
     <div class="main-container">
@@ -50,6 +60,12 @@
                 <button id="view-toggle-btn" class="flat-btn" title="Alternar vista de Chat Normal">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                 </button>
+                <button id="workflow-view-btn" class="flat-btn" title="Vista de Flujo (Grafo)">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                </button>
+                <button id="multiagent-view-btn" class="flat-btn" title="Vista de Chats de Agentes">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>
+                </button>
                 <button id="docs-btn" class="flat-btn" title="Ver Documentación Técnica">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 </button>
@@ -75,8 +91,38 @@
         <div id="views-container">
             <!-- Center Content: Avatar inside Circle (Vista Actual) -->
             <div id="avatar-view" class="center-content active-view">
-                <div class="avatar-circle">
-                    <img id="character-image" src="/static/images/char-mouth-closed.png" alt="Companion Avatar">
+                <div class="avatar-wrapper" style="position: relative; display: inline-block;">
+                    <div class="avatar-circle" style="position: relative;">
+                        <img id="character-image" src="/static/images/char-mouth-closed.png" alt="Companion Avatar">
+                    </div>
+                    
+                    <!-- Botón de Editar (ahora sobre el círculo sin recortarse) -->
+                    <button id="avatar-edit-btn" title="Ajustar cámara" style="display: none; position: absolute; bottom: 20px; right: 20px; width: 34px; height: 34px; border-radius: 50%; background: var(--primary-color); border: 2px solid var(--circle-border); color: white; cursor: pointer; z-index: 11; box-shadow: 0 4px 8px rgba(0,0,0,0.6); justify-content: center; align-items: center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    </button>
+                    
+                    <div id="avatar-edit-menu" style="display: none; position: absolute; top: calc(100% - 30px); left: calc(100% - 30px); width: 220px; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; flex-direction: column; gap: 10px; z-index: 1002; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 0.9em; font-weight: bold; color: var(--text-color);">Ajustes del Modelo</span>
+                            <button id="close-avatar-edit-btn" style="background:none; border:none; color: var(--text-muted); cursor:pointer; font-size: 1.2em;">&times;</button>
+                        </div>
+                        <label style="font-size: 0.8em; display: flex; flex-direction: column; gap: 4px;">
+                            Altura (Y):
+                            <input type="range" id="vrm-y-offset" min="-1.5" max="1.0" step="0.05" value="-0.2" style="width: 100%;">
+                        </label>
+                        <label style="font-size: 0.8em; display: flex; flex-direction: column; gap: 4px;">
+                            Zoom (Z):
+                            <input type="range" id="vrm-zoom" min="0.5" max="3.0" step="0.1" value="2.0" style="width: 100%;">
+                        </label>
+                        <label style="font-size: 0.8em; display: flex; align-items: center; gap: 6px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; margin-top: 4px; cursor: pointer;">
+                            <input type="checkbox" id="cfg-vrm-flip" style="width: 14px; height: 14px; cursor: pointer;">
+                            Rotar 180°
+                        </label>
+                        <label style="font-size: 0.8em; display: flex; flex-direction: column; gap: 4px;">
+                            Brazos (Arriba/Abajo):
+                            <input type="range" id="cfg-vrm-arms" min="-3.0" max="3.0" step="0.05" value="0" style="width: 100%;">
+                        </label>
+                    </div>
                 </div>
 
                 <!-- Plain Text Response -->
@@ -89,6 +135,25 @@
             <div id="chat-view" class="chat-content hidden-view">
                 <div id="chat-history" class="chat-history">
                     <!-- Los mensajes aparecerán aquí -->
+                </div>
+            </div>
+            
+            <!-- Workflow DAG View -->
+            <div id="workflow-view" class="workflow-content hidden-view" style="width:100%; height:100%; position:relative; overflow:auto; justify-content:center; align-items:center; background:var(--bg-color);">
+                <svg id="workflow-edges" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1;"></svg>
+                <div id="workflow-nodes" style="position:relative; z-index:2; width:100%; height:100%;">
+                    <!-- Cards de los agentes generados dinamicamente -->
+                </div>
+            </div>
+
+            <!-- Multi-Agent Split View -->
+            <div id="multiagent-view" class="multiagent-content hidden-view" style="width:100%; height:100%;">
+                <div id="multiagent-sidebar" style="width: 250px; background:var(--surface-color); border-right:1px solid var(--border-color); padding: 10px; display:flex; flex-direction:column; gap:8px;">
+                    <h3>Agentes Activos</h3>
+                    <div id="active-agents-list"></div>
+                </div>
+                <div id="multiagent-chats-container" style="flex:1; display:flex; flex-direction:row; overflow-x:auto;">
+                    <!-- Ventanas de chat split generadas dinamicamente -->
                 </div>
             </div>
             
@@ -137,7 +202,13 @@
         <div class="bottom-bar">
             <div class="input-wrapper">
                 <textarea id="text-input" placeholder="Preguntame algo..." rows="1"></textarea>
-                <button id="mic-button" title="Mantener para dictar" class="icon-btn">
+                
+                <button id="agent-mode-btn" title="Modo Directo activado" data-active="false" style="background-color: transparent; color: var(--text-muted); border: 1px solid var(--text-muted); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                    <svg id="icon-multi-agent" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <svg id="icon-single-agent" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </button>
+                
+                <button id="mic-button" title="Mantener para dictar">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
                 </button>
                 <button id="send-button" title="Enviar">
@@ -199,6 +270,46 @@
                 <button id="close-modal-btn" class="close-btn">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="field" style="background: var(--bg-color-alt); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+                    <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">Estilo del Personaje</h3>
+                    <div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                        <label for="cfg-avatar-mode" style="margin-bottom: 0; cursor: pointer;">Modo de Visualización:</label>
+                        <select id="cfg-avatar-mode" style="padding: 6px; border-radius: 4px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color);">
+                            <option value="classic">Clásico (Imágenes 2D)</option>
+                            <option value="vtuber">VTuber (Modelo 3D VRM)</option>
+                        </select>
+                    </div>
+                    <div id="vtuber-settings" style="display: none; flex-direction: column; gap: 8px;">
+                        <label style="font-size: 0.9em; display:flex; justify-content:space-between; align-items:center; position: relative;">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                Modelo VRM:
+                                <span title="Info sobre modelos" onclick="const t = document.getElementById('vrm-info-tooltip'); t.style.display = t.style.display === 'none' ? 'block' : 'none';" style="cursor: pointer; background: rgba(255,255,255,0.2); border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7em; font-weight: bold; color: var(--text-color);">i</span>
+                            </span>
+                            
+                            <div id="vrm-info-tooltip" style="display: none; position: absolute; top: 100%; left: 0; background: var(--bg-color); border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 1000; font-size: 0.85em; margin-top: 6px; width: 220px;">
+                                <p style="margin: 0 0 6px 0; color: var(--text-color);">Sitios recomendados para descargar modelos VRM:</p>
+                                <a href="https://hub.vroid.com/en/models" target="_blank" style="color: #64B5F6; text-decoration: none; display: block; margin-bottom: 4px;">• VRoid Hub</a>
+                                <a href="https://sketchfab.com/tags/vrm" target="_blank" style="color: #64B5F6; text-decoration: none; display: block;">• Sketchfab</a>
+                            </div>
+                            
+                            <select id="cfg-vrm-model" style="padding: 6px; border-radius: 4px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); flex:1; margin-left:10px;">
+                                <option value="/static/models/sample.vrm">Modelo Base (Sample)</option>
+                                <option value="/static/models/Sakura.vrm">Sakura</option>
+                                <option value="/static/models/Hinata.vrm">Hinata</option>
+                                <option value="/static/models/Sora.vrm">Sora</option>
+                                <option value="/static/models/Rei.vrm">Rei</option>
+                                <option value="/static/models/Yui.vrm">Yui</option>
+                                <option value="/static/models/Miku.vrm">Miku</option>
+                                <option value="/static/models/Rem.vrm">Rem</option>
+                                <option value="custom">Subir uno propio...</option>
+                            </select>
+                        </label>
+                        <label id="custom-vrm-upload-label" style="font-size: 0.9em; display:none; justify-content:space-between; align-items:center;">
+                            <span>Archivo VRM:</span>
+                            <input type="file" id="cfg-vrm-upload" accept=".vrm" style="font-size: 0.8em; max-width: 200px;">
+                        </label>
+                    </div>
+                </div>
                 <div class="field" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
                     <label for="enable-diffs" style="margin-bottom: 0; cursor: pointer;">Habilitar Diffs Visuales en Chat</label>
                     <input type="checkbox" id="enable-diffs" checked style="width: 24px; height: 24px; cursor: pointer;">
@@ -206,6 +317,10 @@
                 <div class="field" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
                     <label for="enable-tts" style="margin-bottom: 0; cursor: pointer;">Habilitar Voz (TTS)</label>
                     <input type="checkbox" id="enable-tts" checked style="width: 24px; height: 24px; cursor: pointer;">
+                </div>
+                <div class="field" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
+                    <label for="enable-notifications" style="margin-bottom: 0; cursor: pointer;">Habilitar Notificaciones de Sistema</label>
+                    <input type="checkbox" id="enable-notifications" checked style="width: 24px; height: 24px; cursor: pointer;">
                 </div>
 
                 <div class="field">
@@ -245,6 +360,11 @@
                             <option value="es-ES-ElviraNeural">Elvira (Espanol - Espana)</option>
                             <option value="es-MX-DaliaNeural">Dalia (Espanol - Mexico)</option>
                             <option value="es-MX-JorgeNeural">Jorge (Espanol - Mexico)</option>
+                        </optgroup>
+                        <optgroup label="Anime / Kawaii">
+                            <option value="ja-JP-NanamiNeural">Nanami (Japonesa - Tono Anime)</option>
+                            <option value="ja-JP-AoiNeural">Aoi (Japonesa - Tono Suave)</option>
+                            <option value="zh-TW-HsiaoChenNeural">HsiaoChen (Taiwanesa - Tono Dulce)</option>
                         </optgroup>
                         <optgroup label="English">
                             <option value="en-US-AvaNeural">Ava (English - US)</option>
@@ -301,6 +421,16 @@
             </div>
         </div>
     </div>
-    <script src="/static/app.js?v=10"></script>
+    
+    <!-- Global VRM Loading Overlay -->
+    <div id="vrm-loading-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; color: white;">
+        <div style="font-size: 1.2em; margin-bottom: 15px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">Cargando modelo VRM...</div>
+        <div style="width: 300px; background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);">
+            <div id="vrm-loading-bar" style="width: 0%; height: 100%; background: var(--primary-color); transition: width 0.1s ease;"></div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=32"></script>
+    <script type="module" src="/static/vrm_integration.js?v=17"></script>
 </body>
 </html>

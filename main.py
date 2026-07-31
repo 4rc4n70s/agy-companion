@@ -70,7 +70,7 @@ def get_brain_dir():
     return os.path.expanduser("~/.gemini/antigravity-cli/brain")
 
 @app.get("/api/conversations")
-def list_conversations():
+def list_conversations(skip: int = 0, limit: int = 20):
     brain_dir = get_brain_dir()
     if not os.path.exists(brain_dir):
         return []
@@ -85,48 +85,82 @@ def list_conversations():
         except:
             pass
 
-    conversations = []
+    # Paso 1: Encontrar todos los transcripts y su fecha de modificación
+    all_conversations = []
     for item in os.listdir(brain_dir):
         path = os.path.join(brain_dir, item)
         if os.path.isdir(path):
             transcript_path = os.path.join(path, ".system_generated", "logs", "transcript.jsonl")
             if os.path.exists(transcript_path):
-                # Intentar sacar título del caché de agy
-                title = ""
-                cached_data = metadata_cache.get(item)
-                if cached_data and isinstance(cached_data, dict):
-                    summary = cached_data.get("summary")
-                    if summary and isinstance(summary, dict):
-                        title = summary.get("Preview", "")
-                
-                if not title:
-                    title = "Conversación sin título"
-                    try:
-                        with open(transcript_path, 'r', encoding='utf-8') as f:
-                            for line in f:
-                                data = json.loads(line)
-                                if data.get("type") == "USER_INPUT":
-                                    content = data.get("content", "")
-                                    # Extraer texto dentro de <USER_REQUEST> si existe
-                                    if "<USER_REQUEST>" in content:
-                                        content = content.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].strip()
-                                    title = content[:40] + ("..." if len(content) > 40 else "")
-                                    break
-                    except:
-                        pass
-                
-                # Obtener fecha de modificación
                 mod_time = os.path.getmtime(transcript_path)
-                
-                conversations.append({
+                all_conversations.append({
                     "id": item,
-                    "title": title,
+                    "path": transcript_path,
                     "timestamp": mod_time
                 })
                 
-    # Ordenar por más reciente primero
-    conversations.sort(key=lambda x: x["timestamp"], reverse=True)
-    return conversations
+    # Paso 2: Ordenar por fecha (más reciente primero)
+    all_conversations.sort(key=lambda x: x["timestamp"], reverse=True)
+    
+    # Paso 3: Aplicar paginación
+    paginated_convs = all_conversations[skip : skip + limit]
+    
+    # Paso 4: Leer los títulos solo para la página actual
+    result = []
+    for conv in paginated_convs:
+        title = ""
+        prefix = "[CLI]"
+        transcript_path = conv["path"]
+        item = conv["id"]
+        
+        try:
+            with open(transcript_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    data = json.loads(line)
+                    if data.get("type") == "USER_INPUT":
+                        content = data.get("content", "")
+                        
+                        if "<USER_REQUEST>" in content:
+                            content = content.split("<USER_REQUEST>")[1].split("</USER_REQUEST>")[0].strip()
+                        else:
+                            content = content.strip()
+                        
+                        if content.startswith("Role:"):
+                            prefix = "[AGE]"
+                            parts = content.split("Task: ", 1)
+                            title = parts[1].strip() if len(parts) > 1 else content.strip()
+                        elif "User says:" in content:
+                            prefix = "[COM]"
+                            parts = content.split("User says:", 1)
+                            title = parts[1].strip() if len(parts) > 1 else content.strip()
+                        else:
+                            prefix = "[CLI]"
+                            cached_data = metadata_cache.get(item)
+                            if cached_data and isinstance(cached_data, dict):
+                                summary = cached_data.get("summary")
+                                if summary and isinstance(summary, dict):
+                                    title = summary.get("Preview", "")
+                            
+                            if not title:
+                                title = content
+                        
+                        title = title[:40] + ("..." if len(title) > 40 else "")
+                        break
+        except:
+            pass
+        
+        if not title:
+            title = "Conversación sin título"
+            
+        full_title = f"{prefix} {title}"
+        
+        result.append({
+            "id": item,
+            "title": full_title,
+            "timestamp": conv["timestamp"]
+        })
+        
+    return result
 
 @app.get("/api/conversations/{conv_id}/messages")
 def get_conversation_messages(conv_id: str):
@@ -359,6 +393,22 @@ async def get_quota():
 @app.websocket("/ws/chat")
 async def websocket_chat(websocket: WebSocket):
     await websocket.accept()
+    
+    event_queue = global_event_bus.subscribe()
+    
+    async def forward_events():
+        try:
+            while True:
+                event = await event_queue.get()
+                await websocket.send_text(json.dumps(event))
+                event_queue.task_done()
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            print(f"Error forwarding events: {e}")
+            
+    forward_task = asyncio.create_task(forward_events())
+    
     try:
         while True:
             cfg = load_config()
@@ -367,6 +417,7 @@ async def websocket_chat(websocket: WebSocket):
             user_message = req.get("message", "")
             conversation_id = req.get("conversation_id", None)
             working_dir = req.get("working_dir", os.path.expanduser("~"))
+            use_agents = req.get("use_agents", True)
             
             if not conversation_id:
                 sys_prompt = cfg.get('system_prompt', '').strip()
@@ -376,49 +427,40 @@ async def websocket_chat(websocket: WebSocket):
                     prompt = user_message
             else:
                 prompt = user_message
+                global_state_manager.set_session(conversation_id)
             
-            cmd = [
-                "agy", 
-                "--dangerously-skip-permissions", 
-                "-p", prompt, 
-                "--output-format", "stream-json"
-            ]
-            if conversation_id:
-                cmd.extend(["--conversation", conversation_id])
-            
-            if cfg.get('model'):
-                cmd.extend(["--model", cfg.get('model')])
-                
             # Verificar que el working dir exista
             if not os.path.isdir(working_dir):
                 working_dir = os.path.expanduser("~")
                 
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=working_dir
-            )
+            if use_agents:
+                # Importacion perezosa para evitar circularidad
+                from agents import SupervisorAgent
+                supervisor = SupervisorAgent(working_dir=working_dir)
+                
+                # Avisamos al cliente que estamos en modo pensamiento
+                await websocket.send_text(json.dumps({"event": "step_update", "step_update": {"step_type": "agent_response", "text_delta": "Planificando el trabajo con el equipo..."}}))
+                
+                final_answer = await supervisor.orchestrate(prompt, conversation_id)
+            else:
+                from agents import BaseAgent
+                agent = BaseAgent(name="Direct", role="Assistant", working_dir=working_dir)
+                
+                await websocket.send_text(json.dumps({"event": "step_update", "step_update": {"step_type": "agent_response", "text_delta": "Procesando respuesta directa..."}}))
+                
+                final_answer = await agent.run(prompt, conversation_id, direct=True)
             
-            # Leemos la salida línea por línea en tiempo real
-            while True:
-                line = await process.stdout.readline()
-                if not line:
-                    break
-                line_str = line.decode('utf-8').strip()
-                if line_str:
-                    try:
-                        await websocket.send_text(line_str)
-                    except Exception:
-                        pass
-                        
-            await process.wait()
+            # Enviar el resultado final al chat principal
+            await websocket.send_text(json.dumps({"event": "result", "result": {"response": final_answer}}))
             await websocket.send_text(json.dumps({"event": "done"}))
             
     except WebSocketDisconnect:
         print("Cliente desconectado")
     except Exception as e:
         print(f"Error WebSocket: {e}")
+    finally:
+        forward_task.cancel()
+        global_event_bus.unsubscribe(event_queue)
         try:
             await websocket.close()
         except:

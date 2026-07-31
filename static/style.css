@@ -172,6 +172,15 @@ body {
     justify-content: center;
     overflow: hidden;
     position: relative;
+    transition: all 0.3s ease;
+}
+
+.avatar-circle.vtuber-mode {
+    width: 420px;
+    height: 420px;
+    border-radius: 50%;
+    border: 4px solid var(--primary-color, #e91e63);
+    background-color: var(--circle-bg);
 }
 
 .avatar-circle img {
@@ -331,7 +340,8 @@ textarea::placeholder {
 .sidebar-body {
     flex: 1;
     padding: 14px;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 10px;

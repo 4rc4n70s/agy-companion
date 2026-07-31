@@ -31,9 +31,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsModal = document.getElementById('settings-modal');
     const closeModalBtn = document.getElementById('close-modal-btn');
     const saveCfgBtn = document.getElementById('save-cfg-btn');
+    const cfgAvatarMode = document.getElementById('cfg-avatar-mode');
+    const vtuberSettings = document.getElementById('vtuber-settings');
+    const cfgVrmUpload = document.getElementById('cfg-vrm-upload');
+    const cfgVrmFlip = document.getElementById('cfg-vrm-flip');
+    const cfgVrmArms = document.getElementById('cfg-vrm-arms');
+    let customVrmDataUrl = localStorage.getItem('customVrmDataUrl') || null;
+
     const cfgCharName = document.getElementById('cfg-char-name');
     const cfgSystemPrompt = document.getElementById('cfg-system-prompt');
     const cfgEnableTts = document.getElementById('enable-tts');
+    const cfgEnableNotifications = document.getElementById('enable-notifications');
     const cfgTtsEngine = document.getElementById('cfg-tts-engine');
     const cfgTtsVoice = document.getElementById('cfg-tts-voice');
     const cfgKokoroVoice = document.getElementById('cfg-kokoro-voice');
@@ -51,10 +59,63 @@ document.addEventListener('DOMContentLoaded', () => {
     let closedMouthImg = `/static/images/char-mouth-closed.png?v=${Date.now()}`;
 
     if (characterImage) characterImage.src = closedMouthImg;
+                if (window.vrmSetTalking) window.vrmSetTalking(0);
 
     let currentAudio = null;
     let lipSyncInterval = null;
+    let audioCtx = null;
+    let audioAnalyser = null;
+    let audioDataArray = null;
+
+    function setupAudioAnalysis(audioElement) {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            audioAnalyser = audioCtx.createAnalyser();
+            audioAnalyser.fftSize = 256;
+            audioDataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
+        }
+        if (!audioElement._hasAudioSource) {
+            audioElement._hasAudioSource = true;
+            try {
+                // crossOrigin is needed if audio is loaded from another domain, but ours is local
+                const source = audioCtx.createMediaElementSource(audioElement);
+                source.connect(audioAnalyser);
+                audioAnalyser.connect(audioCtx.destination);
+            } catch (e) {
+                console.warn('Audio routing error', e);
+            }
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    }
     let activeConfig = {};
+
+    // Modo Orquestador Toggle
+    const agentModeBtn = document.getElementById('agent-mode-btn');
+    const iconMultiAgent = document.getElementById('icon-multi-agent');
+    const iconSingleAgent = document.getElementById('icon-single-agent');
+    
+    if (agentModeBtn) {
+        agentModeBtn.addEventListener('click', () => {
+            const isActive = agentModeBtn.getAttribute('data-active') === 'true';
+            if (isActive) {
+                agentModeBtn.setAttribute('data-active', 'false');
+                agentModeBtn.title = "Modo Directo activado";
+                iconMultiAgent.style.display = 'none';
+                iconSingleAgent.style.display = 'block';
+                agentModeBtn.style.color = 'var(--text-muted)';
+                agentModeBtn.style.borderColor = 'var(--text-muted)';
+            } else {
+                agentModeBtn.setAttribute('data-active', 'true');
+                agentModeBtn.title = "Modo Orquestador activado";
+                iconMultiAgent.style.display = 'block';
+                iconSingleAgent.style.display = 'none';
+                agentModeBtn.style.color = 'var(--primary-color)';
+                agentModeBtn.style.borderColor = 'var(--primary-color)';
+            }
+        });
+    }
 
     // Sidebar Console Log Helper
     function appendLog(type, text) {
@@ -138,14 +199,27 @@ document.addEventListener('DOMContentLoaded', () => {
         closeSidebar();
         loadConversations(); // Actualiza selección
     });
-    
-    async function loadConversations() {
+
+    let currentHistorySkip = 0;
+    const HISTORY_LIMIT = 20;
+
+    async function loadConversations(append = false) {
+        if (!append) {
+            currentHistorySkip = 0;
+        }
+        
         try {
-            const res = await fetch('/api/conversations');
+            const res = await fetch(`/api/conversations?skip=${currentHistorySkip}&limit=${HISTORY_LIMIT}`);
             const data = await res.json();
             
-            conversationsList.innerHTML = '';
-            if (data.length === 0) {
+            if (!append) {
+                conversationsList.innerHTML = '';
+            } else {
+                const loadMoreBtn = document.getElementById('load-more-history-btn');
+                if (loadMoreBtn) loadMoreBtn.remove();
+            }
+            
+            if (data.length === 0 && !append) {
                 conversationsList.innerHTML = '<div style="color: var(--text-muted); text-align: center;">No hay conversaciones guardadas.</div>';
                 return;
             }
@@ -167,8 +241,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.addEventListener('click', () => loadConversationMessages(conv.id));
                 conversationsList.appendChild(item);
             });
+            
+            if (data.length === HISTORY_LIMIT) {
+                const loadMoreBtn = document.createElement('button');
+                loadMoreBtn.id = 'load-more-history-btn';
+                loadMoreBtn.className = 'flat-btn';
+                loadMoreBtn.style.width = '100%';
+                loadMoreBtn.style.marginTop = '10px';
+                loadMoreBtn.style.justifyContent = 'center';
+                loadMoreBtn.innerHTML = '<svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> Cargar más';
+                loadMoreBtn.addEventListener('click', () => {
+                    currentHistorySkip += HISTORY_LIMIT;
+                    loadConversations(true);
+                });
+                conversationsList.appendChild(loadMoreBtn);
+            }
         } catch (e) {
-            console.error(e);
+            console.error('Error cargando historial:', e);
             conversationsList.innerHTML = '<div style="color: red; text-align: center;">Error al cargar el historial.</div>';
         }
     }
@@ -306,6 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 openMouthImg = `/static/images/char-mouth-open.png?v=${data.timestamp}`;
                 closedMouthImg = `/static/images/char-mouth-closed.png?v=${data.timestamp}`;
                 characterImage.src = closedMouthImg;
+                if (window.vrmSetTalking) window.vrmSetTalking(0);
                 genAvatarStatus.textContent = 'Imagen generada y aplicada con exito.';
                 appendLog('sys', 'Nueva imagen del personaje cargada y aplicada.');
             } else {
@@ -357,6 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             activeConfig = cfg;
             if (cfgEnableTts) cfgEnableTts.checked = cfg.enable_tts !== false;
+            if (cfgEnableNotifications) cfgEnableNotifications.checked = cfg.enable_notifications !== false;
             cfgCharName.value = cfg.character_name || 'AGY Companion';
             cfgSystemPrompt.value = cfg.system_prompt || '';
             cfgTtsEngine.value = cfg.tts_engine || 'edge';
@@ -417,6 +508,168 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsModal.classList.remove('hidden');
     });
 
+    // VTuber settings toggle
+    if (cfgAvatarMode) {
+        cfgAvatarMode.addEventListener('change', (e) => {
+            if (vtuberSettings) {
+                vtuberSettings.style.display = e.target.value === 'vtuber' ? 'flex' : 'none';
+            }
+        });
+    }
+
+    const cfgVrmModel = document.getElementById('cfg-vrm-model');
+    const customVrmUploadLabel = document.getElementById('custom-vrm-upload-label');
+    
+    if (cfgVrmModel) {
+        // Load initial state
+        const savedVrmUrl = localStorage.getItem('vrmModelUrl') || '/static/models/sample.vrm';
+        if (savedVrmUrl.startsWith('data:')) {
+            cfgVrmModel.value = 'custom';
+            if (customVrmUploadLabel) customVrmUploadLabel.style.display = 'flex';
+        } else {
+            cfgVrmModel.value = savedVrmUrl;
+        }
+        
+        if (cfgVrmFlip) {
+            const savedFlip = localStorage.getItem('vrmFlip_' + cfgVrmModel.value) === 'true';
+            cfgVrmFlip.checked = savedFlip;
+        }
+        if (cfgVrmArms) {
+            const savedArms = parseFloat(localStorage.getItem('vrmArms_' + cfgVrmModel.value)) || 0;
+            cfgVrmArms.value = savedArms;
+        }
+
+        cfgVrmModel.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (val === 'custom') {
+                if (customVrmUploadLabel) customVrmUploadLabel.style.display = 'flex';
+            } else {
+                if (customVrmUploadLabel) customVrmUploadLabel.style.display = 'none';
+                customVrmDataUrl = null; // Clear custom model since a prebuilt one is selected
+            }
+            if (cfgVrmFlip) {
+                const savedFlip = localStorage.getItem('vrmFlip_' + val) === 'true';
+                cfgVrmFlip.checked = savedFlip;
+            }
+            if (cfgVrmArms) {
+                const savedArms = parseFloat(localStorage.getItem('vrmArms_' + val)) || 0;
+                cfgVrmArms.value = savedArms;
+            }
+        });
+    }
+
+    if (cfgVrmUpload) {
+        cfgVrmUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    customVrmDataUrl = ev.target.result;
+                    appendLog('sys', 'Modelo VRM cargado en memoria temporal.');
+                    if (window.vrmController && cfgVrmModel && cfgVrmModel.value === 'custom') {
+                        window.vrmController.loadModel(customVrmDataUrl);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    // Camera Settings UI
+    const avatarEditBtn = document.getElementById('avatar-edit-btn');
+    const avatarEditMenu = document.getElementById('avatar-edit-menu');
+    const closeAvatarEditBtn = document.getElementById('close-avatar-edit-btn');
+    const vrmYOffsetInput = document.getElementById('vrm-y-offset');
+    const vrmZoomInput = document.getElementById('vrm-zoom');
+    
+    if (avatarEditBtn) {
+        avatarEditBtn.addEventListener('click', () => {
+            avatarEditMenu.style.display = avatarEditMenu.style.display === 'none' ? 'flex' : 'none';
+        });
+        
+        closeAvatarEditBtn.addEventListener('click', () => {
+            avatarEditMenu.style.display = 'none';
+        });
+        
+        // Load saved camera settings
+        const savedY = parseFloat(localStorage.getItem('vrmCameraOffsetY')) || -0.2;
+        const savedZ = parseFloat(localStorage.getItem('vrmCameraZoom')) || 2.0;
+        vrmYOffsetInput.value = savedY;
+        vrmZoomInput.value = savedZ;
+        
+        const updateCamera = () => {
+            const y = parseFloat(vrmYOffsetInput.value);
+            const z = parseFloat(vrmZoomInput.value);
+            localStorage.setItem('vrmCameraOffsetY', y);
+            localStorage.setItem('vrmCameraZoom', z);
+            if (window.vrmController) {
+                window.vrmController.setCamera(y, z);
+            }
+        };
+        
+        vrmYOffsetInput.addEventListener('input', updateCamera);
+        vrmZoomInput.addEventListener('input', updateCamera);
+        
+        if (cfgVrmFlip) {
+            cfgVrmFlip.addEventListener('change', () => {
+                const currentVrmUrl = localStorage.getItem('vrmModelUrl') || '/static/models/sample.vrm';
+                localStorage.setItem('vrmFlip_' + currentVrmUrl, cfgVrmFlip.checked);
+                if (window.vrmController) {
+                    window.vrmController.setFlip(cfgVrmFlip.checked);
+                }
+            });
+        }
+        
+        if (cfgVrmArms) {
+            cfgVrmArms.addEventListener('input', () => {
+                const currentVrmUrl = localStorage.getItem('vrmModelUrl') || '/static/models/sample.vrm';
+                const val = parseFloat(cfgVrmArms.value);
+                localStorage.setItem('vrmArms_' + currentVrmUrl, val);
+                if (window.vrmController) {
+                    window.vrmController.setArmsDown(val);
+                }
+            });
+        }
+    }
+
+    // Apply avatar mode on load
+    const savedAvatarMode = localStorage.getItem('avatarMode') || 'classic';
+    if (cfgAvatarMode) {
+        cfgAvatarMode.value = savedAvatarMode;
+        if (vtuberSettings) vtuberSettings.style.display = savedAvatarMode === 'vtuber' ? 'flex' : 'none';
+    }
+    
+    // Wait for vrmController to be defined by module
+    if (savedAvatarMode === 'vtuber') {
+        const checkInterval = setInterval(() => {
+            if (window.vrmController) {
+                clearInterval(checkInterval);
+                window.vrmController.init();
+                
+                const savedVrmUrl = localStorage.getItem('vrmModelUrl') || '/static/models/sample.vrm';
+                
+                const isFlipped = localStorage.getItem('vrmFlip_' + savedVrmUrl) === 'true';
+                window.vrmController.setFlip(isFlipped);
+                
+                const isArmsDown = parseFloat(localStorage.getItem('vrmArms_' + savedVrmUrl)) || 0;
+                window.vrmController.setArmsDown(isArmsDown);
+                
+                if (savedVrmUrl.startsWith('data:') || customVrmDataUrl) {
+                    window.vrmController.loadModel(customVrmDataUrl || savedVrmUrl);
+                } else {
+                    window.vrmController.loadModel(savedVrmUrl);
+                }
+                
+                if (avatarEditBtn) avatarEditBtn.style.display = 'flex';
+                const y = parseFloat(localStorage.getItem('vrmCameraOffsetY')) || -0.2;
+                const z = parseFloat(localStorage.getItem('vrmCameraZoom')) || 2.0;
+                window.vrmController.setCamera(y, z);
+            }
+        }, 100);
+        // Timeout after 10s
+        setTimeout(() => clearInterval(checkInterval), 10000);
+    }
+
     if (docsBtn) {
         docsBtn.addEventListener('click', async () => {
             docsModal.classList.remove('hidden');
@@ -454,9 +707,53 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsModal.classList.add('hidden');
     });
 
+
     saveCfgBtn.addEventListener('click', async () => {
+        const avatarMode = cfgAvatarMode.value;
+        localStorage.setItem('avatarMode', avatarMode);
+        if (customVrmDataUrl) {
+            try {
+                localStorage.setItem('customVrmDataUrl', customVrmDataUrl);
+            } catch (e) {
+                console.warn('El VRM es muy grande para localStorage, se perdera al recargar.');
+            }
+        }
+        
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+
+        if (avatarMode === 'vtuber') {
+            const vrmVal = cfgVrmModel ? cfgVrmModel.value : null;
+            if (vrmVal) {
+                if (vrmVal !== 'custom') {
+                    localStorage.setItem('vrmModelUrl', vrmVal);
+                }
+            }
+            // Hide modal before loading so the overlay shows properly over everything
+            settingsModal.classList.add('hidden');
+            
+            if (window.vrmController) {
+                window.vrmController.init();
+                const loadUrl = (vrmVal === 'custom' && customVrmDataUrl) ? customVrmDataUrl : vrmVal;
+                if (loadUrl) {
+                    appendLog('sys', 'Iniciando carga de personaje...');
+                    window.vrmController.loadModel(loadUrl);
+                }
+            }
+            if (avatarEditBtn) avatarEditBtn.style.display = 'flex';
+        } else {
+            settingsModal.classList.add('hidden');
+            if (window.vrmController) {
+                window.vrmController.disable();
+            }
+            if (avatarEditBtn) avatarEditBtn.style.display = 'none';
+            if (avatarEditMenu) avatarEditMenu.style.display = 'none';
+        }
+
         const payload = {
             enable_tts: cfgEnableTts ? cfgEnableTts.checked : true,
+            enable_notifications: cfgEnableNotifications ? cfgEnableNotifications.checked : true,
             character_name: cfgCharName.value.trim() || 'AGY Companion',
             system_prompt: cfgSystemPrompt.value.trim(),
             tts_engine: cfgTtsEngine.value,
@@ -473,7 +770,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             activeConfig = payload;
             charHeading.textContent = payload.character_name;
-            settingsModal.classList.add('hidden');
+            if (payload.enable_notifications && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                Notification.requestPermission();
+            }
+            if (avatarMode !== 'vtuber') {
+                settingsModal.classList.add('hidden');
+            }
             appendLog('sys', 'Configuracion del personaje actualizada.');
         } catch (e) {
             console.error('Error saving config:', e);
@@ -534,6 +836,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         clearInterval(lipSyncInterval);
         characterImage.src = closedMouthImg;
+                if (window.vrmSetTalking) window.vrmSetTalking(0);
 
         try {
             const res = await fetch('/api/tts', {
@@ -569,6 +872,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (playBtn) playBtn.innerHTML = '▶';
                         clearInterval(lipSyncInterval);
                         characterImage.src = closedMouthImg;
+                if (window.vrmSetTalking) window.vrmSetTalking(0);
                     }
                 };
                 playBtn.onclick = togglePlay;
@@ -579,11 +883,41 @@ document.addEventListener('DOMContentLoaded', () => {
                     playBtn.innerHTML = '⏹';
                     playBtn.title = 'Detener audio';
                 }
-                let mouthOpen = true;
+                
+                setupAudioAnalysis(thisAudio);
+                
                 lipSyncInterval = setInterval(() => {
-                    characterImage.src = mouthOpen ? openMouthImg : closedMouthImg;
-                    mouthOpen = !mouthOpen;
-                }, 140);
+                    if (audioAnalyser && audioDataArray) {
+                        // Use time-domain data (waveform) to get the actual momentary volume
+                        audioAnalyser.getByteTimeDomainData(audioDataArray);
+                        
+                        let sumOfSquares = 0;
+                        for (let i = 0; i < audioDataArray.length; i++) {
+                            // 128 is the zero-point (silence)
+                            const amplitude = (audioDataArray[i] - 128) / 128.0;
+                            sumOfSquares += amplitude * amplitude;
+                        }
+                        // RMS (Root Mean Square) is the standard way to measure audio volume
+                        const rms = Math.sqrt(sumOfSquares / audioDataArray.length);
+                        
+                        // Scale RMS to 0.0 - 1.0 (speech RMS is usually around 0.1 to 0.3)
+                        let vol = rms * 4.0; 
+                        
+                        // Apply a non-linear curve to make it snap open faster but allow closing
+                        vol = Math.pow(vol, 1.2);
+                        
+                        if (vol > 1.0) vol = 1.0;
+                        if (vol < 0.1) vol = 0.0; // noise gate
+                        
+                        if (window.vrmSetTalking) window.vrmSetTalking(vol);
+                        if (characterImage) characterImage.src = vol > 0.3 ? openMouthImg : closedMouthImg;
+                    } else {
+                        // Fallback if no audio context
+                        let mouthOpen = Math.random() > 0.5;
+                        if (characterImage) characterImage.src = mouthOpen ? openMouthImg : closedMouthImg;
+                        if (window.vrmSetTalking) window.vrmSetTalking(mouthOpen ? 1 : 0);
+                    }
+                }, 33); // 30 FPS for much faster polling of the waveform
             };
 
             thisAudio.onpause = () => {
@@ -593,6 +927,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 clearInterval(lipSyncInterval);
                 characterImage.src = closedMouthImg;
+                if (window.vrmSetTalking) window.vrmSetTalking(0);
             };
 
             thisAudio.onended = () => {
@@ -602,11 +937,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 clearInterval(lipSyncInterval);
                 characterImage.src = closedMouthImg;
+                if (window.vrmSetTalking) window.vrmSetTalking(0);
             };
 
             thisAudio.onerror = () => {
                 clearInterval(lipSyncInterval);
                 characterImage.src = closedMouthImg;
+                if (window.vrmSetTalking) window.vrmSetTalking(0);
                 if (playBtn) playBtn.innerHTML = '❌';
             };
 
@@ -615,6 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('TTS playback error:', e);
             clearInterval(lipSyncInterval);
             characterImage.src = closedMouthImg;
+                if (window.vrmSetTalking) window.vrmSetTalking(0);
             if (playBtn) playBtn.innerHTML = '❌';
         }
     };
@@ -637,13 +975,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewToggleBtn = document.getElementById('view-toggle-btn');
     const artifactsToggleBtn = document.getElementById('artifacts-toggle-btn');
     const workspaceToggleBtn = document.getElementById('workspace-toggle-btn');
+    const workflowViewBtn = document.getElementById('workflow-view-btn');
+    const multiagentViewBtn = document.getElementById('multiagent-view-btn');
+    
     const avatarView = document.getElementById('avatar-view');
     const chatView = document.getElementById('chat-view');
     const chatHistory = document.getElementById('chat-history');
     const artifactsView = document.getElementById('artifacts-view');
     const workspaceView = document.getElementById('workspace-view');
+    const workflowView = document.getElementById('workflow-view');
+    const multiagentView = document.getElementById('multiagent-view');
     
-    let currentView = 'avatar'; // 'avatar', 'chat', 'artifacts', 'workspace'
+    let currentView = 'avatar'; // 'avatar', 'chat', 'artifacts', 'workspace', 'workflow', 'multiagent'
     
     function switchView(newView) {
         currentView = newView;
@@ -656,6 +999,14 @@ document.addEventListener('DOMContentLoaded', () => {
         artifactsView.classList.remove('active-view');
         workspaceView.classList.add('hidden-view');
         workspaceView.classList.remove('active-view');
+        if (workflowView) {
+            workflowView.classList.add('hidden-view');
+            workflowView.classList.remove('active-view');
+        }
+        if (multiagentView) {
+            multiagentView.classList.add('hidden-view');
+            multiagentView.classList.remove('active-view');
+        }
         
         if (newView === 'chat') {
             chatView.classList.remove('hidden-view');
@@ -673,6 +1024,17 @@ document.addEventListener('DOMContentLoaded', () => {
             workspaceView.classList.remove('hidden-view');
             workspaceView.classList.add('active-view');
             loadWorkspaceFiles();
+        } else if (newView === 'workflow') {
+            if (workflowView) {
+                workflowView.classList.remove('hidden-view');
+                workflowView.classList.add('active-view');
+                drawWorkflowEdges(); // Redibujar flechas si hay redimension
+            }
+        } else if (newView === 'multiagent') {
+            if (multiagentView) {
+                multiagentView.classList.remove('hidden-view');
+                multiagentView.classList.add('active-view');
+            }
         } else {
             avatarView.classList.remove('hidden-view');
             avatarView.classList.add('active-view');
@@ -682,6 +1044,14 @@ document.addEventListener('DOMContentLoaded', () => {
     viewToggleBtn.addEventListener('click', () => {
         switchView(currentView === 'chat' ? 'avatar' : 'chat');
     });
+    
+    if (workflowViewBtn) {
+        workflowViewBtn.addEventListener('click', () => switchView(currentView === 'workflow' ? 'avatar' : 'workflow'));
+    }
+    
+    if (multiagentViewBtn) {
+        multiagentViewBtn.addEventListener('click', () => switchView(currentView === 'multiagent' ? 'avatar' : 'multiagent'));
+    }
     
     if (artifactsToggleBtn) {
         artifactsToggleBtn.addEventListener('click', () => {
@@ -857,6 +1227,175 @@ document.addEventListener('DOMContentLoaded', () => {
         chatView.scrollTop = chatView.scrollHeight;
     }
     
+    // --- Workflow DAG Logic ---
+    let currentWorkflowMap = null;
+    function renderWorkflowMap(data) {
+        currentWorkflowMap = data;
+        const nodesContainer = document.getElementById('workflow-nodes');
+        const edgesContainer = document.getElementById('workflow-edges');
+        if(!nodesContainer || !edgesContainer) return;
+        
+        nodesContainer.innerHTML = '';
+        edgesContainer.innerHTML = '';
+        nodesContainer.style.display = 'flex';
+        nodesContainer.style.justifyContent = 'center';
+        nodesContainer.style.alignItems = 'center';
+        nodesContainer.style.gap = '50px';
+        nodesContainer.style.flexWrap = 'wrap';
+
+        const nodeElements = {};
+        
+        // Crear Nodos
+        if (data.agents) {
+            data.agents.forEach(agent => {
+                const card = document.createElement('div');
+                card.className = 'agent-card';
+                card.style.padding = '15px 25px';
+                card.style.background = 'var(--surface-color)';
+                card.style.border = '2px solid var(--border-color)';
+                card.style.borderRadius = '8px';
+                card.style.color = 'var(--text-color)';
+                card.style.fontWeight = 'bold';
+                card.style.zIndex = '2';
+                card.id = `node-${agent}`;
+                card.textContent = agent;
+                nodesContainer.appendChild(card);
+                nodeElements[agent] = card;
+            });
+        }
+        
+        // Dibujar Flechas de forma rapida despues de renderizar
+        setTimeout(() => drawWorkflowEdges(), 100);
+    }
+    
+    window.drawWorkflowEdges = function() {
+        if(!currentWorkflowMap || !currentWorkflowMap.connections) return;
+        const edgesContainer = document.getElementById('workflow-edges');
+        edgesContainer.innerHTML = '';
+        
+        const containerRect = document.getElementById('workflow-view').getBoundingClientRect();
+        
+        currentWorkflowMap.connections.forEach(conn => {
+            const fromNode = document.getElementById(`node-${conn.from}`);
+            const toNode = document.getElementById(`node-${conn.to}`);
+            
+            if(fromNode && toNode) {
+                const rect1 = fromNode.getBoundingClientRect();
+                const rect2 = toNode.getBoundingClientRect();
+                
+                const x1 = rect1.left + rect1.width/2 - containerRect.left;
+                const y1 = rect1.top + rect1.height/2 - containerRect.top;
+                const x2 = rect2.left + rect2.width/2 - containerRect.left;
+                const y2 = rect2.top + rect2.height/2 - containerRect.top;
+                
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', 'var(--accent-color)');
+                line.setAttribute('stroke-width', '2');
+                line.setAttribute('marker-end', 'url(#arrowhead)');
+                
+                edgesContainer.appendChild(line);
+            }
+        });
+    }
+    
+    // Configurar arrowhead
+    const svgEdges = document.getElementById('workflow-edges');
+    if (svgEdges) {
+        svgEdges.innerHTML = `
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="var(--accent-color)"/>
+                </marker>
+            </defs>
+        `;
+    }
+    
+    function updateWorkflowTransition(agentName) {
+        document.querySelectorAll('.agent-card').forEach(card => {
+            card.style.borderColor = 'var(--border-color)';
+            card.style.boxShadow = 'none';
+        });
+        const activeCard = document.getElementById(`node-${agentName}`);
+        if(activeCard) {
+            activeCard.style.borderColor = 'var(--accent-color)';
+            activeCard.style.boxShadow = '0 0 10px var(--accent-color)';
+        }
+    }
+
+    // --- Multi-Agent Split View Logic ---
+    function handleMultiagentStream(agentId, data) {
+        const list = document.getElementById('active-agents-list');
+        const container = document.getElementById('multiagent-chats-container');
+        if(!list || !container) return;
+        
+        let sidebarItem = document.getElementById(`sidebar-item-${agentId}`);
+        if(!sidebarItem) {
+            sidebarItem = document.createElement('div');
+            sidebarItem.id = `sidebar-item-${agentId}`;
+            sidebarItem.style.padding = '8px';
+            sidebarItem.style.cursor = 'pointer';
+            sidebarItem.style.border = '1px solid var(--border-color)';
+            sidebarItem.style.borderRadius = '4px';
+            sidebarItem.textContent = agentId;
+            sidebarItem.onclick = () => toggleAgentChat(agentId);
+            list.appendChild(sidebarItem);
+        }
+        
+        let chatWin = document.getElementById(`chat-win-${agentId}`);
+        if(chatWin) {
+            const body = chatWin.querySelector('.chat-win-body');
+            let content = "";
+            if (data.content) content = data.content;
+            if (data.step_update && data.step_update.text_delta) content = data.step_update.text_delta;
+            if (content) {
+                body.textContent += content;
+                body.scrollTop = body.scrollHeight;
+            }
+        }
+    }
+    
+    function toggleAgentChat(agentId) {
+        const container = document.getElementById('multiagent-chats-container');
+        let chatWin = document.getElementById(`chat-win-${agentId}`);
+        
+        if(chatWin) {
+            chatWin.remove();
+        } else {
+            chatWin = document.createElement('div');
+            chatWin.id = `chat-win-${agentId}`;
+            chatWin.style.flex = '1';
+            chatWin.style.minWidth = '300px';
+            chatWin.style.border = '1px solid var(--border-color)';
+            chatWin.style.margin = '10px';
+            chatWin.style.display = 'flex';
+            chatWin.style.flexDirection = 'column';
+            
+            const header = document.createElement('div');
+            header.style.padding = '8px';
+            header.style.background = 'var(--surface-color)';
+            header.style.borderBottom = '1px solid var(--border-color)';
+            header.style.display = 'flex';
+            header.style.justifyContent = 'space-between';
+            header.innerHTML = `<strong>${agentId}</strong> <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:white;cursor:pointer;">X</button>`;
+            
+            const body = document.createElement('div');
+            body.className = 'chat-win-body';
+            body.style.flex = '1';
+            body.style.padding = '10px';
+            body.style.overflowY = 'auto';
+            body.style.whiteSpace = 'pre-wrap';
+            body.style.fontFamily = 'monospace';
+            
+            chatWin.appendChild(header);
+            chatWin.appendChild(body);
+            container.appendChild(chatWin);
+        }
+    }
+
     function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         ws = new WebSocket(`${protocol}//${window.location.host}/ws/chat`);
@@ -868,6 +1407,23 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
+                
+                // Eventos Multiagente Nuevos
+                if (data.event === "workflow_map" && data.data) {
+                    renderWorkflowMap(data.data);
+                }
+                else if (data.event === "workflow_transition" && data.data) {
+                    updateWorkflowTransition(data.data.active_agent);
+                }
+                else if (data.event === "thought_stream" || data.event === "agent_started") {
+                    if (data.agent_id === "Direct" && data.data && data.data.event === "step_update" && data.data.step_update && data.data.step_update.text_delta) {
+                        let text = data.data.step_update.text_delta;
+                        currentResponseText += text;
+                        updateLastChatMessage(currentResponseText);
+                    } else if (data.agent_id !== "Direct") {
+                        handleMultiagentStream(data.agent_id || "Worker", data.data || {});
+                    }
+                }
                 
                 if (data.event === "init" && data.conversation_id) {
                     currentConversationId = data.conversation_id;
@@ -938,6 +1494,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (activeConfig.enable_tts !== false) {
                         speakTTS(cleanFinal, selectedEngine, selectedVoice, lastMsg);
                     }
+                    
+                    if (activeConfig.enable_notifications !== false) {
+                        if (Notification.permission === 'granted') {
+                            new Notification('AGY Companion', { body: cleanFinal });
+                        } else if (Notification.permission !== 'denied') {
+                            Notification.requestPermission().then(permission => {
+                                if (permission === 'granted') {
+                                    new Notification('AGY Companion', { body: cleanFinal });
+                                }
+                            });
+                        }
+                    }
                 }
                 else if (data.event === "done") {
                     // Subproceso agy finalizado
@@ -974,10 +1542,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        const agentModeBtn = document.getElementById('agent-mode-btn');
+        const useAgents = agentModeBtn ? agentModeBtn.getAttribute('data-active') === 'true' : true;
+        
         const req = {
             message: message,
             conversation_id: currentConversationId,
-            working_dir: projectPathInput ? projectPathInput.value.trim() : ""
+            working_dir: projectPathInput ? projectPathInput.value.trim() : "",
+            use_agents: useAgents
         };
         ws.send(JSON.stringify(req));
     }
