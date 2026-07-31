@@ -284,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
             messages.forEach(msg => {
                 let text = msg.text;
                 if (msg.role === 'agent') {
-                    text = text.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim();
+                    text = text.replace(/<thought>[\s\S]*?<\/thought>/g, '').replace(/94>call:[^\s]+(?:\s*\{[\s\S]*?\})?\s*94>/g, '').trim();
                 }
                 appendChatMessage(msg.role, text);
                 
@@ -301,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (messages.length > 0) {
                 const lastMsg = messages[messages.length - 1];
                 if (lastMsg.role === 'agent') {
-                    status.textContent = lastMsg.text.replace(/<thought>[\s\S]*?<\/thought>/g, '').trim();
+                    status.textContent = lastMsg.text.replace(/<thought>[\s\S]*?<\/thought>/g, '').replace(/94>call:[^\s]+(?:\s*\{[\s\S]*?\})?\s*94>/g, '').trim();
                 }
             } else {
                 status.textContent = 'Hola, en que te puedo ayudar hoy?';
