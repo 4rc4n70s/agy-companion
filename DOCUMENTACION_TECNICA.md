@@ -51,6 +51,9 @@ La interfaz cuenta con la habilidad de crear personajes visuales generados por I
 ### 3.4 Notificaciones de Sistema
 - **Notificaciones del Navegador**: El Companion puede enviar notificaciones nativas de escritorio (a través de la API HTML5 Notification) cuando la IA termina de procesar y emitir su respuesta. Esto es útil para tareas que toman mucho tiempo, permitiendo al usuario cambiar de pestaña sin perder el hilo.
 
+### 3.5 Orquestación de Subagentes
+El sistema soporta la ejecución paralela y visualización de múltiples subagentes. A través del WebSocket, se reciben eventos de tipo `subagent_spawned`, y el frontend renderiza múltiples hilos o burbujas. Esto permite observar a varios agentes interactuando y analizando el proyecto de forma simultánea.
+
 ---
 
 ## 4. Guía de Uso (Tutorial Rápido)
@@ -66,10 +69,3 @@ La interfaz cuenta con la habilidad de crear personajes visuales generados por I
 
 3. **Ver la Terminal**:
    - Abre el panel lateral derecho para ver la salida cruda de los comandos y los registros internos del servidor FastAPI.
-
----
-
-## 5. El Futuro (Fase 6 en Desarrollo)
-
-Actualmente, el sistema opera de manera lineal por cada mensaje de chat. La arquitectura está preparada para implementar la **Orquestación de Subagentes**.
-En el futuro, el WebSocket recibirá eventos de tipo `subagent_spawned`. El frontend renderizará múltiples hilos o burbujas donde podrás ver a 3 o 4 agentes paralelos analizando tu proyecto al mismo tiempo.
