@@ -929,3 +929,110 @@ textarea::placeholder {
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.3em;
 }
+
+/* --------------------------------------
+   Mobile Responsive Adjustments 
+-------------------------------------- */
+@media (max-width: 768px) {
+    /* Main Layout */
+    body {
+        flex-direction: column;
+    }
+    .main-container {
+        order: 1;
+        width: 100vw;
+    }
+
+    /* Top Bar */
+    .top-bar {
+        padding: 10px 15px;
+        flex-wrap: wrap;
+    }
+    .brand h1 {
+        font-size: 1rem;
+    }
+    .actions {
+        flex-wrap: wrap;
+    }
+    .flat-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    /* Sidebars as full height drawers */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 85vw !important;
+        max-width: 320px;
+        height: 100vh;
+        z-index: 10000;
+        margin-left: -100%;
+        transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-right: 1px solid var(--border-color);
+    }
+    .sidebar:not(.closed) {
+        margin-left: 0;
+    }
+    .sidebar.closed {
+        margin-left: -100% !important;
+    }
+
+    /* Avatar and Center Content */
+    .avatar-circle {
+        width: 200px !important;
+        height: 200px !important;
+    }
+    .avatar-circle.vtuber-mode {
+        width: 260px !important;
+        height: 260px !important;
+    }
+    .center-content {
+        gap: 16px;
+    }
+    .response-text-area {
+        padding: 0 15px;
+    }
+    .response-text-area p {
+        font-size: 1.05rem;
+    }
+
+    /* Bottom Bar Input Area */
+    .bottom-bar {
+        padding: 10px 15px 15px 15px;
+    }
+    .input-wrapper {
+        padding: 6px 12px 6px 16px;
+    }
+    #send-button, #mic-button, #agent-mode-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    /* Artifacts / Workspace View */
+    .artifacts-content {
+        flex-direction: column;
+    }
+    .artifacts-sidebar {
+        width: 100% !important;
+        height: auto;
+        max-height: 40vh;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding: 10px 15px;
+    }
+    .artifacts-sidebar.collapsed {
+        display: none !important;
+    }
+    
+    /* Modals */
+    .modal-box {
+        width: 95%;
+        padding: 15px;
+        max-height: 90vh;
+    }
+    .modal-body {
+        max-height: 75vh;
+    }
+}

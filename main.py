@@ -88,6 +88,9 @@ def list_conversations(skip: int = 0, limit: int = 20):
     # Paso 1: Encontrar todos los transcripts y su fecha de modificación
     all_conversations = []
     for item in os.listdir(brain_dir):
+        # Omitir subagentes que tienen "-" en su nombre (conv_id-agent_name)
+        if "-" in item and len(item) > 36: # typical uuid is 36 chars
+            continue
         path = os.path.join(brain_dir, item)
         if os.path.isdir(path):
             transcript_path = os.path.join(path, ".system_generated", "logs", "transcript.jsonl")
@@ -125,7 +128,11 @@ def list_conversations(skip: int = 0, limit: int = 20):
                         else:
                             content = content.strip()
                         
-                        if content.startswith("Role:"):
+                        if content.startswith("Role: Lead Orchestrator"):
+                            prefix = "[ORG]"
+                            parts = content.split("Task: ", 1)
+                            title = parts[1].strip() if len(parts) > 1 else content.strip()
+                        elif content.startswith("Role:"):
                             prefix = "[AGE]"
                             parts = content.split("Task: ", 1)
                             title = parts[1].strip() if len(parts) > 1 else content.strip()
@@ -261,14 +268,109 @@ def get_modified_files(conv_id: str):
     return [{"path": p, "name": os.path.basename(p)} for p in sorted(list(modified_files))]
 
 @app.get("/api/artifacts/{conv_id}/{filename}")
-def read_artifact(conv_id: str, filename: str):
-    file_path = os.path.join(get_brain_dir(), conv_id, filename)
-    if not os.path.exists(file_path) or not os.path.isfile(file_path):
-        return JSONResponse(status_code=404, content={"error": "Artifact no encontrado"})
+def get_artifact(conv_id: str, filename: str):
+    conv_dir = os.path.join(get_brain_dir(), conv_id)
+    file_path = os.path.join(conv_dir, filename)
     
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    return {"name": filename, "content": content}
+    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        return JSONResponse(status_code=404, content={"error": "Artifact not found"})
+        
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return {"filename": filename, "content": content}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.put("/api/artifacts/{conv_id}/{filename}")
+async def save_artifact(conv_id: str, filename: str, request: Request):
+    conv_dir = os.path.join(get_brain_dir(), conv_id)
+    file_path = os.path.join(conv_dir, filename)
+    
+    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        return JSONResponse(status_code=404, content={"error": "Artifact not found"})
+        
+    try:
+        body = await request.json()
+        new_content = body.get("content", "")
+        
+        # Guardar en el original
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(new_content)
+            
+        # Crear copia con _reviewed
+        name, ext = os.path.splitext(filename)
+        reviewed_filename = f"{name}_reviewed{ext}"
+        reviewed_file_path = os.path.join(conv_dir, reviewed_filename)
+        with open(reviewed_file_path, "w", encoding="utf-8") as f:
+            f.write(new_content)
+            
+        return {"status": "success"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/api/agents/history/{conv_id}")
+def get_agents_history(conv_id: str):
+    log_file = os.path.join(get_brain_dir(), conv_id, ".system_generated", "logs", "agent_state.jsonl")
+    workflow_map = None
+    agents = {}
+    
+    if os.path.exists(log_file):
+        try:
+            with open(log_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        entry = json.loads(line)
+                        event = entry.get("event_type")
+                        data = entry.get("data", {})
+                        if event == "workflow_map":
+                            workflow_map = data
+                        elif event in ["agent_spawned", "agent_status"]:
+                            agent_id = data.get("agent_id")
+                            if agent_id:
+                                if agent_id not in agents:
+                                    agents[agent_id] = data
+                                else:
+                                    agents[agent_id].update(data)
+                    except:
+                        pass
+        except:
+            pass
+            
+    # Load transcript for each subagent
+    for agent_id, agent_data in agents.items():
+        if agent_id == "Supervisor":
+            continue
+        subagent_log = os.path.join(get_brain_dir(), f"{conv_id}-{agent_id}", ".system_generated", "logs", "transcript.jsonl")
+        full_text = ""
+        if os.path.exists(subagent_log):
+            try:
+                with open(subagent_log, "r", encoding="utf-8") as f:
+                    for line in f:
+                        try:
+                            entry = json.loads(line)
+                            if entry.get("type") == "PLANNER_RESPONSE":
+                                full_text += entry.get("content", "") + "\n\n"
+                                tools = entry.get("tool_calls", [])
+                                for t in tools:
+                                    t_name = t.get("name", "Tool")
+                                    t_args = t.get("args", {})
+                                    summary = t_args.get("toolSummary", t_name)
+                                    full_text += f"> 🛠️ **{t_name}**: {summary}\n\n"
+                        except:
+                            pass
+            except:
+                pass
+        
+        # Remove thinking tags
+        import re
+        full_text = re.sub(r'<thought>[\s\S]*?</thought>', '', full_text)
+        agent_data["historical_text"] = full_text.strip()
+            
+    return {
+        "workflow_map": workflow_map,
+        "agents": list(agents.values())
+    }
 
 @app.get("/api/agents/state")
 def get_agents_state():
@@ -438,14 +540,19 @@ async def websocket_chat(websocket: WebSocket):
             use_agents = req.get("use_agents", True)
             
             if not conversation_id:
+                import uuid
+                conversation_id = str(uuid.uuid4())
                 sys_prompt = cfg.get('system_prompt', '').strip()
                 if sys_prompt:
                     prompt = f"{sys_prompt}\n\nUser says: {user_message}"
                 else:
                     prompt = user_message
+                # Notify frontend about the new conversation ID
+                await websocket.send_text(json.dumps({"event": "init", "conversation_id": conversation_id}))
             else:
                 prompt = user_message
-                global_state_manager.set_session(conversation_id)
+                
+            global_state_manager.set_session(conversation_id)
             
             # Verificar que el working dir exista
             if not os.path.isdir(working_dir):

@@ -326,6 +326,34 @@ document.addEventListener('DOMContentLoaded', () => {
             // Re-renderizar la UI para resaltar la activa
             setTimeout(loadConversations, 100);
             
+            // Restaurar estado de multiagente
+            try {
+                const histRes = await fetch(`/api/agents/history/${id}`);
+                const histData = await histRes.json();
+                
+                // Clear the active agents list
+                const activeList = document.getElementById('active-agents-list');
+                if (activeList) activeList.innerHTML = '';
+                
+                // Clear workflow nodes and edges
+                const nodes = document.getElementById('workflow-nodes');
+                const edges = document.getElementById('workflow-edges');
+                if (nodes) nodes.innerHTML = '';
+                if (edges) edges.innerHTML = '';
+                
+                if (histData.workflow_map) {
+                    renderWorkflowMap(histData.workflow_map);
+                }
+                if (histData.agents && histData.agents.length > 0) {
+                    histData.agents.forEach(agent => {
+                        handleMultiagentStream(agent.agent_id, {content: agent.historical_text || ""});
+                    });
+                }
+            } catch (e) {
+                console.error("Error al cargar historial de agentes:", e);
+            }
+            
+            
         } catch (e) {
             console.error(e);
             alert("Error al cargar mensajes.");
@@ -635,6 +663,23 @@ document.addEventListener('DOMContentLoaded', () => {
         closeAvatarEditBtn.addEventListener('click', () => {
             avatarEditMenu.style.display = 'none';
         });
+
+        const avatarPauseAudioBtn = document.getElementById('avatar-pause-audio-btn');
+        if (avatarPauseAudioBtn) {
+            avatarPauseAudioBtn.addEventListener('click', () => {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+            clearInterval(lipSyncInterval);
+            if (characterImage) characterImage.src = closedMouthImg;
+            if (window.vrmSetTalking) window.vrmSetTalking(0);
+            
+            document.querySelectorAll('.tts-play-btn').forEach(btn => {
+                btn.innerHTML = '▶';
+            });
+        });
+    }
         
         // Load saved camera settings
         const savedY = parseFloat(localStorage.getItem('vrmCameraOffsetY')) || -0.2;
@@ -1190,7 +1235,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (artifactsToggleBtn) {
         artifactsToggleBtn.addEventListener('click', () => {
-            switchView(currentView === 'artifacts' ? 'avatar' : 'artifacts');
+            const artifactsSidebar = document.querySelector('#artifacts-view .artifacts-sidebar');
+            if (currentView !== 'artifacts') {
+                switchView('artifacts');
+                if (artifactsSidebar) artifactsSidebar.classList.remove('collapsed');
+            } else {
+                if (artifactsSidebar) artifactsSidebar.classList.toggle('collapsed');
+            }
         });
     }
 
@@ -1242,6 +1293,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    window.openArtifact = function(filename) {
+        switchView('artifacts');
+        loadArtifactContent(currentConversationId, filename);
+    };
+
+    async function saveArtifactContent(convId, filename, newContent) {
+        try {
+            const res = await fetch(`/api/artifacts/${convId}/${filename}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: newContent })
+            });
+            if (res.ok) {
+                alert("Archivo guardado correctamente.");
+                loadArtifactContent(convId, filename);
+                loadArtifactsList(convId);
+            } else {
+                alert("Error al guardar el archivo.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error de conexión al guardar.");
+        }
+    }
+
     async function loadArtifactContent(convId, filename) {
         try {
             currentArtifactName = filename;
@@ -1254,18 +1330,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            // Usamos marked para parsear markdown
-            if (window.marked) {
-                artifactContent.innerHTML = window.marked.parse(data.content);
-                // Resaltar sintaxis de bloques de código
-                if (window.hljs) {
-                    artifactContent.querySelectorAll('pre code').forEach((block) => {
-                        window.hljs.highlightElement(block);
-                    });
-                }
-            } else {
-                artifactContent.innerHTML = `<pre><code>${data.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>`;
-            }
+            artifactContent.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin:0; color: var(--primary-color);">${filename}</h3>
+                    <div>
+                        <button id="edit-artifact-btn" class="btn" style="background: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-color); margin-right: 8px;">✏️ Editar</button>
+                        <button id="save-artifact-btn" class="btn" style="display:none; background: var(--accent-color); color: white;">💾 Guardar</button>
+                    </div>
+                </div>
+                <div id="artifact-render-area" class="markdown-body" style="padding: 15px; background: var(--surface-color); border-radius: 8px; border: 1px solid var(--border-color); overflow: auto; height: calc(100vh - 160px);">
+                    ${window.marked ? window.marked.parse(data.content) : data.content}
+                </div>
+                <textarea id="artifact-edit-area" style="display:none; width: 100%; height: calc(100vh - 160px); padding: 15px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 8px; font-family: monospace; resize: vertical;"></textarea>
+            `;
+            
+            const editBtn = document.getElementById('edit-artifact-btn');
+            const saveBtn = document.getElementById('save-artifact-btn');
+            const renderArea = document.getElementById('artifact-render-area');
+            const editArea = document.getElementById('artifact-edit-area');
+            
+            editArea.value = data.content; // Set value directly to avoid escaping issues
+            
+            editBtn.addEventListener('click', () => {
+                editBtn.style.display = 'none';
+                saveBtn.style.display = 'inline-block';
+                renderArea.style.display = 'none';
+                editArea.style.display = 'block';
+            });
+            
+            saveBtn.addEventListener('click', () => {
+                const newContent = editArea.value;
+                saveArtifactContent(convId, filename, newContent);
+            });
+            
         } catch (e) {
             artifactContent.innerHTML = '<p style="color: red;">Error al cargar archivo.</p>';
         }
@@ -1635,9 +1732,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!finalResponse.trim()) {
                         finalResponse = data.result.response || "";
                     }
-                    const cleanFinal = finalResponse.replace(/<thought>[\s\S]*?<\/thought>/g, '').replace(/94>call:[^\s]+(?:\s*\{[\s\S]*?\})?\s*94>/g, '').trim();
+                    let cleanFinal = finalResponse.replace(/<thought>[\s\S]*?<\/thought>/g, '').replace(/94>call:[^\s]+(?:\s*\{[\s\S]*?\})?\s*94>/g, '').trim();
                     
-                    status.textContent = cleanFinal;
+                    // Convert markdown artifact links to buttons
+                    cleanFinal = cleanFinal.replace(
+                        /\[(.*?)\]\(artifact:(.*?)\)/g, 
+                        "<br><br><button class='btn' style='background: var(--accent-color); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;' onclick='window.openArtifact(\"$2\")'>$1</button>"
+                    );
+                    
+                    const textNoHtml = cleanFinal.replace(/<[^>]*>?/gm, ''); // Remove HTML tags like <br> and <button>
+                    
+                    status.textContent = textNoHtml;
                     appendChatMessage('agent', cleanFinal, true);
                     
                     const lastMsgForHighlight = chatHistory.lastElementChild;
@@ -1654,12 +1759,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const lastMsg = chatHistory.lastElementChild;
                     if (activeConfig.enable_tts !== false) {
-                        speakTTS(cleanFinal, selectedEngine, selectedVoice, lastMsg);
+                        speakTTS(textNoHtml, selectedEngine, selectedVoice, lastMsg);
                     }
                     
                     if (activeConfig.enable_notifications !== false) {
                         if (Notification.permission === 'granted') {
-                            new Notification('AGY Companion', { body: cleanFinal, icon: closedMouthImg });
+                            new Notification('AGY Companion', { body: textNoHtml, icon: closedMouthImg });
                         } else if (Notification.permission !== 'denied') {
                             Notification.requestPermission().then(permission => {
                                 if (permission === 'granted') {
@@ -1935,13 +2040,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const renderer = new marked.Renderer();
         const originalCodeRenderer = renderer.code.bind(renderer);
         renderer.code = function(code, language, isEscaped) {
-            if (language === 'diff' && enableDiffsCheckbox && enableDiffsCheckbox.checked) {
+            let actualCode = typeof code === 'object' ? code.text : code;
+            let actualLang = typeof code === 'object' ? (code.lang || '') : (language || '');
+            
+            if (actualLang === 'diff' && enableDiffsCheckbox && enableDiffsCheckbox.checked) {
                 // Usar diff2html
                 try {
                     // Validar si es formato diff unificado (necesita header a veces)
-                    let diffText = code;
+                    let diffText = actualCode;
                     if (!diffText.startsWith('---') && !diffText.startsWith('diff --git')) {
-                        diffText = `--- a/file\n+++ b/file\n@@ -1,1 +1,1 @@\n` + code;
+                        diffText = `--- a/file\n+++ b/file\n@@ -1,1 +1,1 @@\n` + actualCode;
                     }
                     const html = Diff2Html.html(diffText, {
                         drawFileList: false,
@@ -1949,12 +2057,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         outputFormat: 'side-by-side',
                         theme: 'dark'
                     });
-                    return `<div class="diff-container">${html}</div>`;
+                    return `<div class="diff-container" style="margin-bottom:12px; overflow-x:auto;">${html}</div>`;
                 } catch(e) {
-                    return originalCodeRenderer(code, language, isEscaped);
+                    console.error("Error renderizando diff", e);
+                    return originalCodeRenderer.apply(this, arguments);
                 }
             }
-            return originalCodeRenderer(code, language, isEscaped);
+            return originalCodeRenderer.apply(this, arguments);
         };
         marked.use({ renderer: renderer });
     };
@@ -2119,4 +2228,47 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Mobile responsive: close sidebars when clicking outside or selecting an item
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768) {
+            const consoleSidebar = document.getElementById('console-sidebar');
+            const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+            const cliToggleBtn = document.getElementById('cli-toggle-btn');
+            
+            if (consoleSidebar && !consoleSidebar.classList.contains('closed')) {
+                if ((!consoleSidebar.contains(e.target) && 
+                     (!sidebarToggleBtn || !sidebarToggleBtn.contains(e.target)) && 
+                     (!cliToggleBtn || !cliToggleBtn.contains(e.target))) || 
+                    e.target.closest('.history-item')) {
+                    consoleSidebar.classList.add('closed');
+                }
+            }
+            
+            const historySidebar = document.getElementById('history-sidebar');
+            const historyToggleBtn = document.getElementById('history-toggle-btn');
+            if (historySidebar && !historySidebar.classList.contains('closed')) {
+                if ((!historySidebar.contains(e.target) && 
+                     (!historyToggleBtn || !historyToggleBtn.contains(e.target))) || 
+                    e.target.closest('.history-item')) {
+                    historySidebar.classList.add('closed');
+                }
+            }
+            
+            const artifactsSidebars = document.querySelectorAll('.artifacts-sidebar');
+            artifactsSidebars.forEach(sidebar => {
+                if (!sidebar.classList.contains('collapsed')) {
+                    if (!sidebar.contains(e.target) || e.target.closest('.artifact-item')) {
+                        const toggleBtnArt = document.getElementById('artifacts-toggle-btn');
+                        const toggleBtnWS = document.getElementById('workspace-toggle-btn');
+                        if ((toggleBtnArt && toggleBtnArt.contains(e.target)) || 
+                            (toggleBtnWS && toggleBtnWS.contains(e.target))) {
+                            return;
+                        }
+                        sidebar.classList.add('collapsed');
+                    }
+                }
+            });
+        }
+    });
 });
